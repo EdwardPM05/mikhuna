@@ -1,0 +1,19 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+.env.local
+*.jks
+*.keystore
+android/keystore.properties
+android/app/build/
+android/build/
+android/.gradle/
+android/app/.cxx/
+android/.cxx/
+*.log
+.DS_Store
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
