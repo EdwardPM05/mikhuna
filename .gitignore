@@ -17,3 +17,6 @@ android/.cxx/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# estado local del CLI de Supabase, no se comparte
+supabase/.temp/

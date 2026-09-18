@@ -34,6 +34,7 @@ Para generar el APK de Android, ver [docs/COMPILACION_APK_ANDROID.md](docs/COMPI
 - [docs/BRANDING.md](docs/BRANDING.md) — identidad visual, colores, tipografía, mascotas, tono de voz.
 - [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) — estructura de carpetas, rutas, contexts, capa de datos.
 - [docs/FLUJOS.md](docs/FLUJOS.md) — onboarding, autenticación, Flujo A (plan semanal) y Flujo B (delivery inmediato), lista de compras.
+- [docs/IA.md](docs/IA.md) — generación de planes con Gemini vía Supabase Edge Function.
 - [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md) — cómo generar un APK de prueba localmente.
 
 ## Estructura rápida
