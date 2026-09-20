@@ -157,7 +157,8 @@ def _cortar_pegados(t: str) -> list[str]:
 SOLO_CANTIDAD = re.compile(
     rf"^(?:\d+(?:[.,/]\d+)?|[½¼¾⅓⅔⅛])(?:\s*(?:\d+/\d+|[½¼¾⅓⅔⅛]))?(?:\s*(?:{UNIDADES})\.?)?$", re.I)
 NOTA_ENTRE_PARENTESIS = re.compile(r"^\([^)]*\)$")
-MODIFICADOR = re.compile(r"^[a-záéíóúñ]+(?:ado|ada|ados|adas|ido|ida|idos|idas)$")
+MODIFICADOR = re.compile(
+    r"^(?:[a-záéíóúñ]+(?:ado|ada|ados|adas|ido|ida|idos|idas)|(?:en|sin|bien|muy|al|a)\s+[a-záéíóúñ]+(?:\s+[a-záéíóúñ]+)?)$")
 
 
 def dividir_ingredientes_pegados(texto) -> list[str]:
@@ -176,6 +177,12 @@ def dividir_ingredientes_pegados(texto) -> list[str]:
     for tramo in re.split(r"\s{2,}|\n", texto):
         for bloque in (dividir_ingredientes(tramo) if "," in tramo else [tramo]):
             piezas.extend(x.strip(" .,;") for x in "|".join(_cortar_pegados(bloque)).split("|"))
+    return fusionar_fragmentos(piezas)
+
+
+def fusionar_fragmentos(piezas: list[str]) -> list[str]:
+    """Pega modificadores sueltos ('picado', 'en cubos') y notas '(250 g)' al ingrediente anterior, y las
+    cantidades sueltas ('4 cucharadas') al siguiente, para que cada fila sea un ingrediente completo."""
     resultado: list[str] = []
     pendiente = ""  # cantidad suelta ('4 cucharadas') que pertenece al siguiente ingrediente
     for x in piezas:
@@ -483,7 +490,7 @@ def main() -> None:
     for _, r in recetas.iterrows():
         heuristico = not r["ingredientes_separables"]
         lineas = dividir_ingredientes_pegados(r["ingredientes_raw"]) if heuristico \
-            else dividir_ingredientes(r["ingredientes_raw"])
+            else fusionar_fragmentos(dividir_ingredientes(r["ingredientes_raw"]))
         for pos, linea in enumerate(lineas):
             p = parsear_ingrediente(linea)
             filas_ing.append({"receta_id": r["receta_id"], "posicion": pos, "texto": linea,

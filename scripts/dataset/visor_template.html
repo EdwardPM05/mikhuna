@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor de recetas · Mikhuna</title>
+<style>
+  :root{
+    --cream:#FDF3E7; --ink:#241F21; --chili:#E5131B; --mango:#F7941D; --peach:#FFC993;
+    --maroon:#7A1220; --white:#FFFFFF; --green:#2f8f57; --line:rgba(36,31,33,.12); --muted:rgba(36,31,33,.55);
+    --warn:#fff4d6; --bad:#fde3e3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font:14px/1.45 "Nunito Sans",system-ui,sans-serif}
+  h1,h2,h3{font-family:"Baloo 2","Nunito Sans",system-ui,sans-serif;margin:0}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--white);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+  header h1{font-size:20px;color:var(--chili)}
+  header .stat{color:var(--muted);font-size:13px}
+  .layout{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 53px)}
+  aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--white)}
+  .filtros{padding:12px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+  .filtros input,.filtros select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--white)}
+  .checks{display:flex;flex-wrap:wrap;gap:6px}
+  .chk{display:inline-flex;gap:5px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 9px;cursor:pointer;font-size:12px;user-select:none}
+  .chk.on{background:var(--chili);color:#fff;border-color:var(--chili)}
+  .chk input{display:none}
+  #lista{overflow:auto;flex:1;min-height:0}
+  .item{padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+  .item:hover{background:var(--cream)}
+  .item.sel{background:var(--peach)}
+  .item b{display:block;font-weight:700}
+  .item small{color:var(--muted)}
+  .pager{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font-size:13px}
+  .pager button{border:1px solid var(--line);background:var(--white);border-radius:8px;padding:5px 10px;cursor:pointer}
+  .pager button:disabled{opacity:.4;cursor:default}
+  main{overflow:auto;padding:22px 28px}
+  .vacio{color:var(--muted);margin-top:40px;text-align:center}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+  .tag{border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--peach);color:var(--maroon)}
+  .tag.ok{background:#dcf3e4;color:var(--green)} .tag.warn{background:var(--warn);color:#8a5a00} .tag.bad{background:var(--bad);color:var(--chili)}
+  table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:8px 0 22px}
+  th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--cream);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  tr.dud td{background:var(--warn)} tr.anim td.n{color:var(--maroon)}
+  .b{display:inline-block;font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:4px}
+  .b.h{background:#e6e6f8;color:#3b3b8f}.b.d{background:var(--bad);color:var(--chili)}.b.c{background:#dcf3e4;color:var(--green)}.b.a{background:#f4e0e0;color:var(--maroon)}
+  ol{padding-left:0;list-style:none;margin:8px 0 22px;counter-reset:p}
+  ol li{counter-increment:p;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:10px 12px 10px 46px;margin-bottom:8px;position:relative}
+  ol li:before{content:counter(p);position:absolute;left:12px;top:9px;width:24px;height:24px;border-radius:50%;background:var(--chili);color:#fff;font:700 12px/24px "Baloo 2",sans-serif;text-align:center}
+  a{color:var(--chili)}
+  @media (max-width:860px){.layout{grid-template-columns:1fr;height:auto}aside{max-height:55vh}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Visor de recetas</h1>
+  <span class="stat" id="stat">cargando índice…</span>
+</header>
+<div class="layout">
+  <aside>
+    <div class="filtros">
+      <input id="q" placeholder="Buscar por título o ingrediente (ej: lomo, ají amarillo)">
+      <select id="pais"><option value="">Todos los países</option></select>
+      <select id="fuente"><option value="">Todas las fuentes</option></select>
+      <div class="checks" id="checks"></div>
+    </div>
+    <div id="lista"></div>
+    <div class="pager">
+      <button id="prev">‹ Anterior</button><span id="pos"></span><button id="next">Siguiente ›</button>
+    </div>
+  </aside>
+  <main id="detalle"><p class="vacio">Elige una receta de la lista para ver sus ingredientes y pasos.</p></main>
+</div>
+
+<script charset="utf-8" src="datos/indice.js"></script>
+<script>
+  // window.INDICE = { fuentes:[...], tam_shard:N, filas:[[id,nombre,pais,flags,nIng,nPasos,fuenteIdx,ingStr],...] }
+  const FLAG = {VEG:1, VEGAN:2, CONFLICTO:4, INCOMPLETA:8, DURACION:16, COMENSALES:32, DUPLICADO:64, PAIS_INF:128, DUDOSOS:256};
+  const FILTROS = [
+    ["veg","Vegetariana verificada",FLAG.VEG],["vegan","Vegana verificada",FLAG.VEGAN],
+    ["conf","Dieta en conflicto",FLAG.CONFLICTO],["inc","Ingredientes incompletos",FLAG.INCOMPLETA],
+    ["dud","Con parseo dudoso",FLAG.DUDOSOS],["dur","Duración sospechosa",FLAG.DURACION],
+    ["com","Comensales sospechoso",FLAG.COMENSALES],["dup","Posible duplicado",FLAG.DUPLICADO],
+  ];
+  const TAM = 50, filas = window.INDICE.filas, fuentes = window.INDICE.fuentes;
+  const $ = id => document.getElementById(id);
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const busq = filas.map(f => norm(f[1]+" "+f[7]));
+  let activos = new Set(), pagina = 0, resultado = [], seleccionada = null;
+
+  const paises = [...new Set(filas.map(f=>f[2]).filter(Boolean))].sort();
+  $("pais").innerHTML += paises.map(p=>`<option>${p}</option>`).join("");
+  $("fuente").innerHTML += fuentes.map((f,i)=>`<option value="${i}">${f}</option>`).join("");
+  $("checks").innerHTML = FILTROS.map(([k,l])=>`<label class="chk" data-k="${k}">${l}</label>`).join("");
+  $("checks").onclick = e => { const el = e.target.closest(".chk"); if(!el) return;
+    const k = el.dataset.k; activos.has(k) ? activos.delete(k) : activos.add(k); el.classList.toggle("on"); pagina=0; filtrar(); };
+  ["q","pais","fuente"].forEach(id => $(id).oninput = () => { pagina=0; filtrar(); });
+  $("prev").onclick = () => { pagina--; pintarLista(); }; $("next").onclick = () => { pagina++; pintarLista(); };
+
+  function filtrar(){
+    const q = norm($("q").value.trim()), pais = $("pais").value, fu = $("fuente").value;
+    const mask = FILTROS.filter(([k])=>activos.has(k)).map(f=>f[2]);
+    resultado = [];
+    for (let i=0;i<filas.length;i++){
+      const f = filas[i];
+      if (pais && f[2]!==pais) continue;
+      if (fu!=="" && f[6]!==+fu) continue;
+      if (mask.some(m => !(f[3] & m))) continue;
+      if (q && !q.split(/\s+/).every(t => busq[i].includes(t))) continue;
+      resultado.push(i);
+    }
+    pintarLista();
+  }
+  function pintarLista(){
+    const total = resultado.length, ult = Math.max(0, Math.ceil(total/TAM)-1);
+    pagina = Math.min(Math.max(0,pagina), ult);
+    const ini = pagina*TAM, trozo = resultado.slice(ini, ini+TAM);
+    $("lista").innerHTML = trozo.map(i => { const f=filas[i];
+      return `<div class="item${seleccionada===f[0]?" sel":""}" data-i="${i}"><b>${esc(f[1])}</b><small>${esc(f[2]||"sin país")} · ${f[4]} ingredientes · ${f[5]} pasos</small></div>`; }).join("")
+      || `<p class="vacio">Sin resultados</p>`;
+    $("pos").textContent = total ? `${ini+1}–${Math.min(ini+TAM,total)} de ${total.toLocaleString("es")}` : "0";
+    $("prev").disabled = pagina===0; $("next").disabled = pagina>=ult;
+    $("stat").textContent = `${filas.length.toLocaleString("es")} recetas · ${total.toLocaleString("es")} coinciden`;
+    $("lista").scrollTop = 0;
+  }
+  $("lista").onclick = e => { const el = e.target.closest(".item"); if(el) abrir(+el.dataset.i); };
+
+  const cargados = {};
+  function cargarShard(n){
+    return new Promise(res => {
+      if (cargados[n]) return res(cargados[n]);
+      const s = document.createElement("script"); s.charset="utf-8"; s.src = `datos/s${String(n).padStart(3,"0")}.js`;
+      window.__shard = (num, datos) => { cargados[num] = datos; };
+      s.onload = () => res(cargados[n]); document.head.appendChild(s);
+    });
+  }
+  const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const num = v => v==null ? "" : (Number.isInteger(v) ? v : (+v).toFixed(2).replace(/\.?0+$/,""));
+
+  async function abrir(i){
+    const f = filas[i]; seleccionada = f[0]; pintarLista();
+    const datos = await cargarShard(Math.floor(i / window.INDICE.tam_shard));
+    const r = datos[i % window.INDICE.tam_shard];
+    const tags = [];
+    tags.push(`<span class="tag">${esc(r.pais||"sin país")}${r.pi?" (inferido)":""}</span>`);
+    if (r.dur) tags.push(`<span class="tag">${r.dur} min${f[3]&FLAG.DURACION?" ⚠":""}</span>`);
+    if (r.com) tags.push(`<span class="tag">${r.com} comensales${f[3]&FLAG.COMENSALES?" ⚠":""}</span>`);
+    if (r.dif) tags.push(`<span class="tag">dificultad ${r.dif}/3</span>`);
+    if (r.tipo) tags.push(`<span class="tag">${esc(r.tipo)}</span>`);
+    if (r.val) tags.push(`<span class="tag">★ ${r.val}</span>`);
+    (r.cats||[]).forEach(c => tags.push(`<span class="tag">${esc(c)}</span>`));
+    if (f[3]&FLAG.VEG) tags.push(`<span class="tag ok">Vegetariana verificada</span>`);
+    if (f[3]&FLAG.VEGAN) tags.push(`<span class="tag ok">Vegana verificada</span>`);
+    if (f[3]&FLAG.CONFLICTO) tags.push(`<span class="tag bad">La fuente la etiqueta vegetariana/vegana pero sus ingredientes lo contradicen</span>`);
+    if (f[3]&FLAG.INCOMPLETA) tags.push(`<span class="tag bad">Ingredientes incompletos</span>`);
+    if (r.dup) tags.push(`<span class="tag warn">Posible duplicado de #${r.dup}</span>`);
+    const filasIng = r.ing.map(g => `<tr class="${g.d?"dud":""}${g.a?" anim":""}">
+      <td>${esc(g.t)}${g.h?'<span class="b h">heurístico</span>':""}${g.d?'<span class="b d">dudoso</span>':""}</td>
+      <td>${num(g.c)}${g.cm?"–"+num(g.cm):""}</td><td>${esc(g.u||"")}</td>
+      <td class="n">${esc(g.n)}${g.o?" (opcional)":""}${g.a?'<span class="b a">animal</span>':""}${g.k?`<span class="b c">catálogo: ${g.k}</span>`:""}</td></tr>`).join("");
+    $("detalle").innerHTML = `
+      <h2 style="font-size:28px">${esc(r.nombre)}</h2>
+      <div class="meta">${tags.join("")}</div>
+      <p style="color:var(--muted)">Receta #${r.id} · fuente: ${esc(fuentes[f[6]])}${r.url?` · <a href="${esc(r.url)}" target="_blank" rel="noopener">ver original</a>`:" · sin URL de receta"}</p>
+      <h3>Ingredientes (${r.ing.length})</h3>
+      ${r.ing.length ? `<table><tr><th>Texto original</th><th>Cant.</th><th>Unidad</th><th>Ingrediente interpretado</th></tr>${filasIng}</table>` : `<p class="vacio">La fuente no trae ingredientes utilizables.</p>`}
+      <h3>Preparación (${r.pasos.length} pasos)</h3>
+      <ol>${r.pasos.map(p=>`<li>${esc(p)}</li>`).join("")}</ol>`;
+    $("detalle").scrollTop = 0;
+  }
+  filtrar();
+</script>
+</body>
+</html>
