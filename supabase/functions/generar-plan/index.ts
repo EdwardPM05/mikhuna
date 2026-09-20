@@ -105,6 +105,40 @@ ${catalogoTexto}
 No inventes precios ni los incluyas en la respuesta. Responde solo con platos peruanos reales y pasos de preparación breves y claros en español.`;
 }
 
+function esperar(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Gemini en la capa gratis devuelve 503 (sobrecargado) o 429 (cuota) seguido,
+// sobre todo en horas pico. Son errores transitorios: unos segundos después
+// suele funcionar, así que reintentamos con backoff antes de rendirnos.
+async function llamarGeminiConReintentos(prompt: string, intentos = 3): Promise<Response> {
+  let ultimaRespuesta: Response | null = null;
+  for (let intento = 0; intento < intentos; intento++) {
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+          temperature: 0.8,
+        },
+      }),
+    });
+
+    if (res.ok) return res;
+
+    const reintentable = res.status === 503 || res.status === 429;
+    ultimaRespuesta = res;
+    if (!reintentable || intento === intentos - 1) return res;
+
+    await esperar(800 * Math.pow(2, intento)); // 800ms, 1.6s, 3.2s...
+  }
+  return ultimaRespuesta!;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
@@ -144,23 +178,19 @@ Deno.serve(async (req: Request) => {
   const prompt = construirPrompt(body);
 
   try {
-    const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0.8,
-        },
-      }),
-    });
+    const geminiRes = await llamarGeminiConReintentos(prompt);
 
     if (!geminiRes.ok) {
       const detalle = await geminiRes.text();
+      const sobrecargado = geminiRes.status === 503 || geminiRes.status === 429;
       return new Response(
-        JSON.stringify({ error: "Gemini falló", status: geminiRes.status, detalle }),
+        JSON.stringify({
+          error: sobrecargado
+            ? "Gemini está saturado ahora mismo, intenta de nuevo en unos segundos"
+            : "Gemini falló",
+          status: geminiRes.status,
+          detalle,
+        }),
         { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }

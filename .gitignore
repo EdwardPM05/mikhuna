@@ -23,3 +23,6 @@ supabase/.temp/
 
 # datasets procesados (pesados, regenerables con scripts/dataset/build_recipes.py)
 data/
+
+__pycache__/
+*.pyc
