@@ -20,3 +20,6 @@ android/.cxx/
 
 # estado local del CLI de Supabase, no se comparte
 supabase/.temp/
+
+# datasets procesados (pesados, regenerables con scripts/dataset/build_recipes.py)
+data/
