@@ -157,6 +157,29 @@ def _cortar_pegados(t: str) -> list[str]:
 SOLO_CANTIDAD = re.compile(
     rf"^(?:\d+(?:[.,/]\d+)?|[½¼¾⅓⅔⅛])(?:\s*(?:\d+/\d+|[½¼¾⅓⅔⅛]))?(?:\s*(?:{UNIDADES})\.?)?$", re.I)
 NOTA_ENTRE_PARENTESIS = re.compile(r"^\([^)]*\)$")
+PARA_VERBO = re.compile(r"^para\s+[a-záéíóúñ]+(?:ar|er|ir|ír|ér)(?:se)?(?:\s+[a-záéíóúñ]+){0,3}$", re.I)
+
+# líneas que la fuente mete en la lista de ingredientes pero no son ingredientes
+_RUIDO_SIEMPRE = re.compile(
+    r"^(?:enviad[ao]\s+por\b|receta\s+de\b|por\s+cada\b|preparaci[oó]n\b|elaboraci[oó]n\b|ingredientes?\s*(?:para\b.*)?$)",
+    re.I)
+_RUIDO_SIN_NUMEROS = re.compile(r"^(?:para\s+(?:el|la|los|las)\b|nota\b|consejo\b|opcional\b)", re.I)
+_UTENSILIOS = {"rallador", "cuchillo", "sartén", "sarten", "bol", "palillos", "fuente", "olla", "batidora", "licuadora",
+               "horno", "molde", "tabla", "cuchara", "espátula", "colador", "papel de cocina", "procesador", "cacerola"}
+
+
+def es_ruido(linea: str) -> bool:
+    """Crédito del autor, encabezado de sección ('Para la masa:'), títulos y utensilios."""
+    t = linea.strip(" .")
+    if not re.search(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]", t):
+        return True
+    if re.match(r"(?i)^ingredientes?\b", t) and len(t.split()) <= 4:   # 'Ingredientes secos', 'INGREDIENTES.'
+        return True
+    if t.endswith(":") or _RUIDO_SIEMPRE.match(t):
+        return True
+    if _RUIDO_SIN_NUMEROS.match(t) and not re.search(r"\d", t):
+        return True
+    return t.lower().rstrip("s") in _UTENSILIOS or t.lower() in _UTENSILIOS
 MODIFICADOR = re.compile(
     r"^(?:[a-záéíóúñ]+(?:ado|ada|ados|adas|ido|ida|idos|idas)|(?:en|sin|bien|muy|al|a)\s+[a-záéíóúñ]+(?:\s+[a-záéíóúñ]+)?)$")
 
@@ -186,9 +209,11 @@ def fusionar_fragmentos(piezas: list[str]) -> list[str]:
     resultado: list[str] = []
     pendiente = ""  # cantidad suelta ('4 cucharadas') que pertenece al siguiente ingrediente
     for x in piezas:
-        if not x:
+        if not x or es_ruido(x):
             continue
-        if SOLO_CANTIDAD.match(x):
+        if resultado and not pendiente and PARA_VERBO.match(x):
+            resultado[-1] = f"{resultado[-1]}, {x}"   # 'aceite, para freír'
+        elif SOLO_CANTIDAD.match(x):
             pendiente = f"{pendiente} {x}".strip()
         elif NOTA_ENTRE_PARENTESIS.match(x) and resultado:
             resultado[-1] = f"{resultado[-1]} {x}"
