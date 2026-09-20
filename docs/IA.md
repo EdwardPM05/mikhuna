@@ -37,4 +37,10 @@ curl -s -X POST "https://lpnujzuatgnekirfdxru.supabase.co/functions/v1/generar-p
 
 - La capa gratuita de Gemini (Google AI Studio) tiene límite de requests por minuto y por día — no hay caché todavía, así que cada llamada gasta cuota. Antes de conectarla al wizard en producción conviene cachear el plan generado (por ejemplo, por hash de las respuestas del wizard) para no volver a pedirle a Gemini el mismo plan dos veces.
 - La función está desplegada con `--no-verify-jwt` (no exige sesión de usuario) para simplificar las pruebas iniciales. No devuelve ni modifica datos sensibles, pero antes de dejarla en uso real conviene evaluar si debe exigir JWT como el resto de la API.
-- No hay reintentos ni fallback automático todavía: si Gemini falla o se acaba la cuota, `generarPlanConIA()` lanza un error — quien lo use debe decidir si cae de vuelta a `generarPlanSemana()`.
+- **Reintentos:** la Edge Function reintenta hasta 3 veces con espera creciente (0.8 s, 1.6 s, 3.2 s) cuando Gemini responde `503` (sobrecargado) o `429` (cuota); son errores transitorios frecuentes en la capa gratis, sobre todo en horas pico. Si se agotan los reintentos responde `502` con un mensaje claro.
+- **Sin fallback automático todavía:** si Gemini sigue fallando, `generarPlanConIA()` lanza un error — quien lo use debe decidir si cae de vuelta a `generarPlanSemana()`. Una cadena de respaldo (otro proveedor gratuito como Groq u OpenRouter) es una mejora posible, pero requiere otra API key.
+- **Sin caché:** cada llamada gasta cuota; conviene cachear por hash de las respuestas del wizard antes de conectarlo.
+
+## Página de prueba
+
+Para probar la función con opciones reales (días, antojos, restricciones, presupuesto) sin escribir `curl`, se puede servir una página HTML estática que le pegue directo a la Edge Function (el CORS ya está abierto). No está en el repo porque solo es una herramienta local de pruebas.

@@ -41,3 +41,14 @@ Este archivo es el que se reemplazaría por llamadas reales a Supabase / un mode
 ## Multi-store: por qué existe `preferenciasCompra`
 
 El modelo evitó a propósito depender de "un solo negocio vende todo el plan": cada ingrediente puede venderse en varias tiendas a distinto precio, y el usuario decide (o deja que se elija automáticamente la más barata) dónde comprar cada uno. `preferenciasCompra: Record<ingredienteId, negocioId>` guarda esa decisión, y tanto la lista de compras como el carrito de delivery la leen para agrupar por tienda.
+
+## Backend (`supabase/`)
+
+- **`supabase/functions/generar-plan/`** — Edge Function (Deno) que le pide a Gemini un plan semanal en JSON estructurado. La API key vive como secreto del proyecto, nunca en el cliente. Ver [IA.md](IA.md).
+- **`lib/ia.ts`** — cliente de esa función en la app (`generarPlanConIA()`); todavía no está conectado al wizard.
+- `tsconfig.json` excluye `supabase/functions` porque corre en Deno, no en React Native.
+- `supabase/.temp/` (estado local del CLI) está en `.gitignore`.
+
+## Scripts de datos (`scripts/dataset/`)
+
+Pipeline en Python que arma la base de recetas en español a partir de CSV externos (dedupe, limpieza, ingredientes separados, cantidades normalizadas, tabla de peso por unidad) y un visor HTML local para revisarla. Los resultados van a `data/` (ignorado por git). Ver [DATASET.md](DATASET.md).

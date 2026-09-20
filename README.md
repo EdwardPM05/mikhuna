@@ -36,6 +36,7 @@ Para generar el APK de Android, ver [docs/COMPILACION_APK_ANDROID.md](docs/COMPI
 - [docs/FLUJOS.md](docs/FLUJOS.md) — onboarding, autenticación, Flujo A (plan semanal) y Flujo B (delivery inmediato), lista de compras.
 - [docs/IA.md](docs/IA.md) — generación de planes con Gemini vía Supabase Edge Function.
 - [docs/DATASET.md](docs/DATASET.md) — dataset de recetas: fuentes, limpieza, cantidades normalizadas y tabla de peso por unidad.
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) — registro de cambios por commit, con lo aprendido en cada uno.
 - [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md) — cómo generar un APK de prueba localmente.
 
 ## Estructura rápida
