@@ -45,11 +45,39 @@ CATALOGO = {
 }
 
 UNIDADES = (
-    r"kilogramos?|kilos?|kg|gramos?|gr|g|litros?|lt|l|mililitros?|ml|cl|"
-    r"cucharadas?|cucharaditas?|cdas?|cdtas?|tazas?|vasos?|puñados?|pizcas?|chorros?|"
+    r"kilogramos?|kilos?|kgs?|gramos?|grs?|g|litros?|lts?|l|mililitros?|ml|cc|cl|"
+    r"cucharadas?|cucharaditas?|cucharillas?|cuchara|cdas?|cdtas?|tazas?|vasos?|puñados?|pizcas?|chorros?|chorritos?|"
     r"dientes?|hojas?|ramas?|ramitas?|manojos?|latas?|paquetes?|sobres?|unidades?|"
-    r"rodajas?|lonchas?|filetes?|trozos?|onzas?|oz|libras?|lb"
+    r"rodajas?|lonchas?|filetes?|trozos?|onzas?|oz|libras?|lb|cabezas?|atados?|tallos?|pedazos?"
 )
+
+# unidad cruda -> (unidad_base, factor, tipo)
+#   g/ml son comparables y sumables; 'aprox' marca conversiones de volumen (una taza de harina y una de agua no pesan igual)
+#   unidad/pizca/... no se convierten: son conteos o medidas sin equivalente exacto.
+CONVERSION = {
+    "kg": ("g", 1000, "peso"), "kgs": ("g", 1000, "peso"), "kilo": ("g", 1000, "peso"), "kilos": ("g", 1000, "peso"),
+    "kilogramo": ("g", 1000, "peso"), "kilogramos": ("g", 1000, "peso"),
+    "g": ("g", 1, "peso"), "gr": ("g", 1, "peso"), "grs": ("g", 1, "peso"), "gramo": ("g", 1, "peso"), "gramos": ("g", 1, "peso"),
+    "onza": ("g", 28.35, "peso"), "onzas": ("g", 28.35, "peso"), "oz": ("g", 28.35, "peso"),
+    "libra": ("g", 453.6, "peso"), "libras": ("g", 453.6, "peso"), "lb": ("g", 453.6, "peso"),
+    "ml": ("ml", 1, "volumen"), "cc": ("ml", 1, "volumen"), "mililitro": ("ml", 1, "volumen"), "mililitros": ("ml", 1, "volumen"),
+    "cl": ("ml", 10, "volumen"), "l": ("ml", 1000, "volumen"), "lt": ("ml", 1000, "volumen"), "lts": ("ml", 1000, "volumen"),
+    "litro": ("ml", 1000, "volumen"), "litros": ("ml", 1000, "volumen"),
+    # medidas de cocina: volumen aproximado (estándar 15 / 5 / 240 / 200 ml)
+    "cucharada": ("ml", 15, "volumen_aprox"), "cucharadas": ("ml", 15, "volumen_aprox"), "cda": ("ml", 15, "volumen_aprox"),
+    "cdas": ("ml", 15, "volumen_aprox"), "cuchara": ("ml", 15, "volumen_aprox"),
+    "cucharadita": ("ml", 5, "volumen_aprox"), "cucharaditas": ("ml", 5, "volumen_aprox"), "cdta": ("ml", 5, "volumen_aprox"),
+    "cdtas": ("ml", 5, "volumen_aprox"), "cucharilla": ("ml", 5, "volumen_aprox"), "cucharillas": ("ml", 5, "volumen_aprox"),
+    "taza": ("ml", 240, "volumen_aprox"), "tazas": ("ml", 240, "volumen_aprox"),
+    "vaso": ("ml", 200, "volumen_aprox"), "vasos": ("ml", 200, "volumen_aprox"),
+}
+# unidades de conteo/medida sin conversión: se guardan en singular
+SINGULAR = {"dientes": "diente", "hojas": "hoja", "ramas": "rama", "ramitas": "ramita", "manojos": "manojo", "latas": "lata",
+            "paquetes": "paquete", "sobres": "sobre", "unidades": "unidad", "rodajas": "rodaja", "lonchas": "loncha",
+            "filetes": "filete", "trozos": "trozo", "puñados": "puñado", "pizcas": "pizca", "chorros": "chorro",
+            "chorritos": "chorrito", "cabezas": "cabeza", "atados": "atado", "tallos": "tallo", "pedazos": "pedazo"}
+AL_GUSTO = re.compile(r"\b(al gusto|a gusto|c/n|cantidad necesaria|necesario|necesaria|un poco|lo justo|cantidad suficiente)\b", re.I)
+EQUIVALENCIA = re.compile(r"\(\s*(?:aprox\.?\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|gr|grs|gramos|ml|l|lt|litros?|cc)\s*(?:\.|[/,-][^)]*)?\)", re.I)
 FRACCIONES = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125}
 
 
@@ -336,7 +364,7 @@ def parsear_ingrediente(linea: str) -> dict:
     opcional = bool(re.search(r"\bopcional\b", resto, re.I))
     cantidad, cantidad_max, resto = extraer_cantidad(resto)
     unidad = None
-    m = re.match(rf"^({UNIDADES})\b\.?\s*", resto, re.I)
+    m = re.match(rf"^(?:de\s+)?({UNIDADES})\b\.?\s*", resto, re.I)
     if m:
         unidad = m.group(1).lower()
         resto = resto[m.end():]
@@ -352,6 +380,48 @@ def parsear_ingrediente(linea: str) -> dict:
             "nombre": nombre.lower(), "opcional": opcional}
 
 
+
+
+CONDIMENTOS = {"sal", "pimienta", "sal y pimienta", "pimienta y sal", "sal fina", "sal gruesa", "pimienta negra",
+               "pimienta blanca", "sal marina", "sal y pimienta negra", "pimienta molida", "sal de mesa"}
+
+
+def normalizar_cantidad(cantidad, cantidad_max, unidad, texto: str, nombre: str = "") -> dict:
+    """Lleva la cantidad a una unidad comparable y suma-ble.
+
+    unidad_base: 'g', 'ml', una unidad de conteo ('unidad', 'diente', 'lata'...), 'pizca', 'al_gusto' o None.
+    metodo_cantidad dice de dónde salió el número (para que se pueda confiar o revisar):
+      directa                 gramos/kg/ml/litros: conversión exacta
+      conversion_aproximada   cucharadas/tazas/vasos -> ml con medidas estándar (una taza de harina no pesa lo que una de agua)
+      equivalencia            la fuente trae '(400 g)' junto a una lata/unidad: se usa ese peso
+      conteo                  '2 limones', '3 dientes de ajo': no hay peso, se guarda el conteo
+      al_gusto / sin_dato     no hay cantidad utilizable (no se inventa)
+    """
+    vacio = {"cantidad_base": None, "cantidad_base_max": None, "unidad_base": None, "tipo_cantidad": "sin_cantidad",
+             "metodo_cantidad": "sin_dato"}
+    texto = texto or ""
+    tiene_cantidad = cantidad is not None and not pd.isna(cantidad)
+    if tiene_cantidad and unidad in CONVERSION:
+        base, factor, tipo = CONVERSION[unidad]
+        return {"cantidad_base": round(cantidad * factor, 1),
+                "cantidad_base_max": round(cantidad_max * factor, 1) if cantidad_max and not pd.isna(cantidad_max) else None,
+                "unidad_base": base, "tipo_cantidad": "peso" if base == "g" else "volumen",
+                "metodo_cantidad": "conversion_aproximada" if tipo == "volumen_aprox" else "directa"}
+    equiv = EQUIVALENCIA.search(texto)
+    if equiv and unidad not in CONVERSION:
+        base, factor, _ = CONVERSION[equiv.group(2).lower()]
+        return {"cantidad_base": round(float(equiv.group(1).replace(",", ".")) * factor, 1), "cantidad_base_max": None,
+                "unidad_base": base, "tipo_cantidad": "peso" if base == "g" else "volumen", "metodo_cantidad": "equivalencia"}
+    if not tiene_cantidad:
+        if AL_GUSTO.search(texto):
+            return {**vacio, "unidad_base": "al_gusto", "tipo_cantidad": "al_gusto", "metodo_cantidad": "al_gusto"}
+        if nombre.strip() in CONDIMENTOS:   # supuesto: la fuente solo dice 'Sal', se entiende 'al gusto'
+            return {**vacio, "unidad_base": "al_gusto", "tipo_cantidad": "al_gusto", "metodo_cantidad": "al_gusto_supuesto"}
+        return vacio
+    u = SINGULAR.get(unidad, unidad) if unidad else "unidad"
+    return {"cantidad_base": round(float(cantidad), 2),
+            "cantidad_base_max": round(float(cantidad_max), 2) if cantidad_max and not pd.isna(cantidad_max) else None,
+            "unidad_base": u, "tipo_cantidad": "conteo", "metodo_cantidad": "conteo"}
 
 
 def id_catalogo(nombre: str) -> str | None:
@@ -519,10 +589,24 @@ def main() -> None:
         for pos, linea in enumerate(lineas):
             p = parsear_ingrediente(linea)
             filas_ing.append({"receta_id": r["receta_id"], "posicion": pos, "texto": linea,
-                              **p, "ingrediente_id": id_catalogo(p["nombre"]),
+                              **p, **normalizar_cantidad(p["cantidad"], p["cantidad_max"], p["unidad"], linea, p["nombre"]),
+                              "ingrediente_id": id_catalogo(p["nombre"]),
                               "parseo_heuristico": heuristico,
                               "parseo_dudoso": len(p["nombre"]) > 60 or not p["nombre"]})
     ingredientes = pd.DataFrame(filas_ing)
+
+    # valores que la fuente trae mal (p. ej. '400 kilogramos de nueces', '170 Harina' sin unidad): se marcan, no se corrigen
+    cb, ub = ingredientes["cantidad_base"], ingredientes["unidad_base"]
+    ingredientes["cantidad_sospechosa"] = (
+        ((ub == "g") & ((cb > 10_000) | (cb < 1)))
+        | ((ub == "ml") & ((cb > 5_000) | (cb < 1)))
+        | ((ub == "unidad") & (cb >= 50))
+        | (cb == 0)
+    )
+    # cantidad por porción: solo si la receta declara comensales y la cantidad es creíble; si no, queda vacía
+    comensales = ingredientes["receta_id"].map(recetas.set_index("receta_id")["comensales"])
+    escalable = (ub.isin(["g", "ml"]) | (ingredientes["tipo_cantidad"] == "conteo")) & ~ingredientes["cantidad_sospechosa"]
+    ingredientes["cantidad_por_racion"] = (cb / comensales).where(escalable & (comensales > 0)).round(2)
 
     n_ing = ingredientes.groupby("receta_id").size()
     recetas["num_ingredientes"] = recetas["receta_id"].map(n_ing).fillna(0).astype(int)
@@ -566,6 +650,11 @@ def main() -> None:
     print(f"Perú: {(recetas['pais'] == 'Perú').sum():,} | vegetarianas verificadas: {int(recetas['apta_vegetariana'].sum()):,} (fuente decía {int(recetas['etiqueta_vegetariana_fuente'].sum()):,}) | veganas verificadas: {int(recetas['apta_vegana'].sum()):,} (fuente decía {int(recetas['etiqueta_vegana_fuente'].sum()):,})")
     print(f"Incompletas (<2 ingredientes): {int(recetas['ingredientes_incompletos'].sum()):,} | dieta en conflicto: {int(recetas['dieta_en_conflicto'].sum()):,} | posibles duplicados: {int(recetas['posible_duplicado_de'].notna().sum()):,}")
     print(f"Ingredientes que calzan con tu catálogo: {ingredientes['ingrediente_id'].notna().mean():.1%}")
+    m = ingredientes["metodo_cantidad"].value_counts(normalize=True)
+    print("Cantidades por método:", {k: f"{v:.1%}" for k, v in m.items()})
+    print(f"Cantidades sospechosas (para revisar): {int(ingredientes['cantidad_sospechosa'].sum()):,}")
+    print(f"Con cantidad utilizable (g/ml/conteo): {(ingredientes['cantidad_base'].notna()).mean():.1%} | "
+          f"con cantidad por porción: {ingredientes['cantidad_por_racion'].notna().mean():.1%}")
     print(f"Salida en: {out.resolve()}")
 
 

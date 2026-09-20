@@ -41,7 +41,7 @@
   table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:8px 0 22px}
   th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
   th{background:var(--cream);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-  tr.dud td{background:var(--warn)} tr.anim td.n{color:var(--maroon)}
+  tr.dud td{background:var(--warn)} tr.sosp td{background:var(--bad)} tr.anim td.n{color:var(--maroon)}
   .b{display:inline-block;font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:4px}
   .b.h{background:#e6e6f8;color:#3b3b8f}.b.d{background:var(--bad);color:var(--chili)}.b.c{background:#dcf3e4;color:var(--green)}.b.a{background:#f4e0e0;color:var(--maroon)}
   ol{padding-left:0;list-style:none;margin:8px 0 22px;counter-reset:p}
@@ -75,11 +75,11 @@
 <script charset="utf-8" src="datos/indice.js"></script>
 <script>
   // window.INDICE = { fuentes:[...], tam_shard:N, filas:[[id,nombre,pais,flags,nIng,nPasos,fuenteIdx,ingStr],...] }
-  const FLAG = {VEG:1, VEGAN:2, CONFLICTO:4, INCOMPLETA:8, DURACION:16, COMENSALES:32, DUPLICADO:64, PAIS_INF:128, DUDOSOS:256};
+  const FLAG = {VEG:1, VEGAN:2, CONFLICTO:4, INCOMPLETA:8, DURACION:16, COMENSALES:32, DUPLICADO:64, PAIS_INF:128, DUDOSOS:256, CANT_SOSP:512};
   const FILTROS = [
     ["veg","Vegetariana verificada",FLAG.VEG],["vegan","Vegana verificada",FLAG.VEGAN],
     ["conf","Dieta en conflicto",FLAG.CONFLICTO],["inc","Ingredientes incompletos",FLAG.INCOMPLETA],
-    ["dud","Con parseo dudoso",FLAG.DUDOSOS],["dur","Duración sospechosa",FLAG.DURACION],
+    ["dud","Con parseo dudoso",FLAG.DUDOSOS],["csos","Cantidad sospechosa",FLAG.CANT_SOSP],["dur","Duración sospechosa",FLAG.DURACION],
     ["com","Comensales sospechoso",FLAG.COMENSALES],["dup","Posible duplicado",FLAG.DUPLICADO],
   ];
   const TAM = 50, filas = window.INDICE.filas, fuentes = window.INDICE.fuentes;
@@ -136,6 +136,16 @@
   }
   const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const num = v => v==null ? "" : (Number.isInteger(v) ? v : (+v).toFixed(2).replace(/\.?0+$/,""));
+  // 1500 g -> "1.5 kg", 2000 ml -> "2 L"; el resto queda como viene
+  const fmt = (v, u) => u==="g" && v>=1000 ? `${num(v/1000)} kg` : u==="ml" && v>=1000 ? `${num(v/1000)} L` : `${num(v)} ${u||""}`.trim();
+  const METODO = {conversion_aproximada:["≈ aprox.","warn"], equivalencia:["equivalencia","c"], al_gusto_supuesto:["supuesto","h"], conteo:["","" ]};
+  function cantidadBase(g){
+    if (g.ub==="al_gusto") return `al gusto${g.mc==="al_gusto_supuesto"?'<span class="b h">supuesto</span>':""}`;
+    if (g.cb==null) return '<span style="color:var(--muted)">sin dato</span>';
+    const rango = g.cm && g.ub ? "–"+fmt(g.cm,g.ub) : "";
+    const m = METODO[g.mc] || ["",""];
+    return `<b>${fmt(g.cb,g.ub)}</b>${rango}${m[0]?`<span class="b ${m[1]==="warn"?"d":m[1]}" title="método: ${g.mc}">${m[0]}</span>`:""}${g.cs?'<span class="b d">revisar</span>':""}`;
+  }
 
   async function abrir(i){
     const f = filas[i]; seleccionada = f[0]; pintarLista();
@@ -154,16 +164,16 @@
     if (f[3]&FLAG.CONFLICTO) tags.push(`<span class="tag bad">La fuente la etiqueta vegetariana/vegana pero sus ingredientes lo contradicen</span>`);
     if (f[3]&FLAG.INCOMPLETA) tags.push(`<span class="tag bad">Ingredientes incompletos</span>`);
     if (r.dup) tags.push(`<span class="tag warn">Posible duplicado de #${r.dup}</span>`);
-    const filasIng = r.ing.map(g => `<tr class="${g.d?"dud":""}${g.a?" anim":""}">
+    const filasIng = r.ing.map(g => `<tr class="${g.d?"dud":""}${g.cs?" sosp":""}${g.a?" anim":""}">
       <td>${esc(g.t)}${g.h?'<span class="b h">heurístico</span>':""}${g.d?'<span class="b d">dudoso</span>':""}</td>
-      <td>${num(g.c)}${g.cm?"–"+num(g.cm):""}</td><td>${esc(g.u||"")}</td>
+      <td>${cantidadBase(g)}</td><td>${g.cp==null?'<span style="color:var(--muted)">—</span>':fmt(g.cp,g.ub)+" /pers."}</td>
       <td class="n">${esc(g.n)}${g.o?" (opcional)":""}${g.a?'<span class="b a">animal</span>':""}${g.k?`<span class="b c">catálogo: ${g.k}</span>`:""}</td></tr>`).join("");
     $("detalle").innerHTML = `
       <h2 style="font-size:28px">${esc(r.nombre)}</h2>
       <div class="meta">${tags.join("")}</div>
       <p style="color:var(--muted)">Receta #${r.id} · fuente: ${esc(fuentes[f[6]])}${r.url?` · <a href="${esc(r.url)}" target="_blank" rel="noopener">ver original</a>`:" · sin URL de receta"}</p>
       <h3>Ingredientes (${r.ing.length})</h3>
-      ${r.ing.length ? `<table><tr><th>Texto original</th><th>Cant.</th><th>Unidad</th><th>Ingrediente interpretado</th></tr>${filasIng}</table>` : `<p class="vacio">La fuente no trae ingredientes utilizables.</p>`}
+      ${r.ing.length ? `<table><tr><th>Texto original</th><th>Cantidad normalizada</th><th>Por persona</th><th>Ingrediente interpretado</th></tr>${filasIng}</table>` : `<p class="vacio">La fuente no trae ingredientes utilizables.</p>`}
       <h3>Preparación (${r.pasos.length} pasos)</h3>
       <ol>${r.pasos.map(p=>`<li>${esc(p)}</li>`).join("")}</ol>`;
     $("detalle").scrollTop = 0;

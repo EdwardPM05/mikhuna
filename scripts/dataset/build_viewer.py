@@ -15,7 +15,7 @@ import pandas as pd
 
 TAM_SHARD = 500
 FLAG = {"veg": 1, "vegan": 2, "conflicto": 4, "incompleta": 8, "duracion": 16,
-        "comensales": 32, "duplicado": 64, "pais_inf": 128, "dudosos": 256}
+        "comensales": 32, "duplicado": 64, "pais_inf": 128, "dudosos": 256, "cant_sosp": 512}
 
 
 def num(v):
@@ -37,6 +37,7 @@ def main() -> None:
     r = pd.read_csv(data / "recipes.csv").sort_values("receta_id").reset_index(drop=True)
     ing = pd.read_csv(data / "ingredients.csv")
     dudoso_por_receta = set(ing.loc[ing["parseo_dudoso"], "receta_id"])
+    sospechosa_por_receta = set(ing.loc[ing["cantidad_sospechosa"], "receta_id"])
     por_receta = {rid: g.sort_values("posicion") for rid, g in ing.groupby("receta_id")}
     fuentes = sorted(r["fuente"].unique().tolist())
 
@@ -50,6 +51,8 @@ def main() -> None:
                     "t": i["texto"], "c": num(i["cantidad"]), "cm": num(i["cantidad_max"]), "u": texto(i["unidad"]),
                     "n": texto(i["nombre"]) or "", "o": bool(i["opcional"]), "h": bool(i["parseo_heuristico"]),
                     "d": bool(i["parseo_dudoso"]), "a": bool(i["es_animal_o_derivado"]), "k": texto(i["ingrediente_id"]),
+                    "cb": num(i["cantidad_base"]), "ub": texto(i["unidad_base"]), "mc": texto(i["metodo_cantidad"]),
+                    "cp": num(i["cantidad_por_racion"]), "cs": bool(i["cantidad_sospechosa"]),
                 })
         flags = 0
         for clave, col in (("veg", "apta_vegetariana"), ("vegan", "apta_vegana"), ("conflicto", "dieta_en_conflicto"),
@@ -61,6 +64,8 @@ def main() -> None:
             flags |= FLAG["duplicado"]
         if x["receta_id"] in dudoso_por_receta:
             flags |= FLAG["dudosos"]
+        if x["receta_id"] in sospechosa_por_receta:
+            flags |= FLAG["cant_sosp"]
         cats = json.loads(x["categorias"]) if isinstance(x["categorias"], str) else []
         indice.append([int(x["receta_id"]), x["nombre"], texto(x["pais"]) or "", flags, len(filas_ing),
                        int(x["num_pasos"]), fuentes.index(x["fuente"]),
