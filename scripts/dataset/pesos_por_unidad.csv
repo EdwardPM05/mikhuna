@@ -1,0 +1,90 @@
+patron,unidad,g_tipico,g_min,g_max,ml_tipico,confianza,paises,nota
+\bhuevos? de codorniz\b,unidad,10,8,12,,alta,,huevo de codorniz
+\byemas?\b,unidad,18,15,20,,alta,,yema de huevo mediano
+\bclaras?\b,unidad,33,28,38,,alta,,clara de huevo mediano
+\bhuevos?\b,unidad,50,45,63,,alta,,huevo entero mediano (M ≈ 53 g con cáscara ≈ 50 g sin ella)
+\bajos?\b,diente,4,3,6,,alta,,diente de ajo mediano
+\bajos?\b,cabeza,40,30,60,,media,,cabeza de ajo (unos 10-12 dientes)
+\bcebolletas?\b|\bcebollas? (china|verde)s?\b|\bcebollines?\b,unidad,25,15,50,,baja,,varía mucho entre cebolleta española y cebolla china
+\bcebollas?\b,unidad,150,110,200,,media,,cebolla mediana
+\bpuerros?\b,unidad,150,90,250,,baja,,puerro mediano ya limpio
+\btomates? cherry\b,unidad,15,10,20,,media,,
+\btomates?\b|\bjitomates?\b,unidad,120,90,180,,media,,tomate mediano
+\bpimientos? (del )?piquillo\b,unidad,25,15,40,,baja,,
+\bpimientos?\b|\bmorrones?\b,unidad,150,120,220,,media,,pimiento morrón mediano
+\bpimenton(es)?\b,unidad,150,120,220,,baja,Chile|Perú|Colombia|Venezuela|Argentina|Bolivia|Ecuador,en estos países 'pimentón' es el pimiento morrón (no el pimentón en polvo)
+\blimas?\b,unidad,45,30,70,,media,,lima
+\blimon(es)?\b,unidad,30,20,40,,media,Perú|México|Colombia|Ecuador|Bolivia|Venezuela|Guatemala|Honduras|El Salvador|Nicaragua|Costa Rica|Panamá|Cuba|República Dominicana|Puerto Rico,en estos países el 'limón' es una lima ácida pequeña
+\blimon(es)?\b,unidad,60,50,100,,alta,,limón amarillo entero (no solo el jugo)
+\bnaranjas?\b,unidad,140,110,200,,media,,naranja mediana
+\bmandarinas?\b,unidad,80,60,110,,media,,
+\bzanahorias?\b,unidad,70,50,100,,media,,zanahoria mediana
+\bpapas? amarillas?\b|\bpatatas? amarillas?\b,unidad,120,80,180,,media,,
+\bpapas?\b|\bpatatas?\b,unidad,150,100,250,,media,,papa mediana
+\bcamotes?\b|\bbatatas?\b|\bboniatos?\b,unidad,200,150,300,,media,,
+\byucas?\b,unidad,350,250,500,,baja,,
+\baji(es)? amarillos?\b,unidad,40,25,60,,media,,ají amarillo fresco
+\brocotos?\b,unidad,60,40,90,,baja,,
+\baji(es)?\b|\bchiles?\b|\bguindillas?\b,unidad,15,5,30,,baja,,depende mucho de la variedad (jalapeño ≈ 15 g)
+\bmanzanas?\b,unidad,180,140,220,,alta,,manzana mediana
+\bperas?\b,unidad,170,130,220,,media,,
+\bplatanos?\b|\bbananas?\b|\bbananos?\b,unidad,120,90,150,,media,,pelado
+\bpaltas?\b|\baguacates?\b,unidad,200,150,300,,media,,fruta entera con cáscara y hueso (pulpa ≈ 70 %)
+\bcalabacin(es)?\b|\bzucchinis?\b,unidad,200,150,300,,media,,
+\bberenjenas?\b,unidad,300,200,450,,media,,
+\bpepinos?\b,unidad,200,150,300,,media,,
+\bchoclos?\b|\bmazorcas?\b|\belotes?\b,unidad,250,180,350,,baja,,mazorca con hojas; el grano es ≈ 50 %
+\baceitunas?\b|\bolivas?\b,unidad,4,3,6,,media,,con hueso
+\bpechugas? de pollo\b|\bpechugas?\b,unidad,220,150,300,,baja,,¿pechuga entera o media? varía por país
+\bmuslos? de pollo\b|\bmuslos?\b,unidad,150,100,200,,baja,,
+\bsalchichas?\b,unidad,60,40,90,,baja,,
+\bpimientas? en grano\b,unidad,0.05,0.03,0.08,,baja,,
+\bclavos?\b,unidad,0.2,0.1,0.3,,media,,clavo de olor
+\bapio\b,rama,40,30,60,,alta,,tallo de apio mediano
+\bcanela\b,rama,3,2,5,,media,,
+\bperejil\b,rama,3,1,5,,baja,,
+\bcilantro\b|\bculantro\b,rama,3,1,5,,baja,,
+\btomillo\b|\bromero\b,rama,1,0.5,2,,baja,,
+\bhierbabuena\b|\bmenta\b|\byerbabuena\b,rama,2,1,3,,baja,,
+\blaurel\b,hoja,0.3,0.2,0.5,,media,,hoja seca
+\balbahaca\b,hoja,0.5,0.3,1,,baja,,
+\bmenta\b|\bhierbabuena\b,hoja,0.3,0.2,0.5,,baja,,
+\blechuga\b,hoja,12,8,20,,baja,,
+\bperejil\b|\bcilantro\b|\bculantro\b,manojo,35,20,60,,baja,,
+\bperejil\b|\bcilantro\b|\bculantro\b|\bhierbabuena\b,atado,35,20,60,,baja,,
+\bgelatina\b,sobre,7,7,15,,alta,,sobre de gelatina sin sabor (7 g); con sabor pesa más
+\blevadura\b,sobre,7,7,11,,alta,,levadura seca activa
+\bpolvo de hornear\b|\broyal\b,sobre,16,10,16,,media,,
+\bjamon\b,loncha,20,10,30,,media,,
+\bqueso\b,loncha,20,15,28,,media,,
+\btocino\b|\bbacon\b|\bpanceta\b,loncha,15,10,25,,media,,
+\bpan\b,rebanada,30,20,45,,media,,rebanada de pan de molde
+\bpan\b,barra,250,150,400,,baja,,barra de pan (baguette)
+\batun\b,lata,140,80,170,,baja,,lata típica de atún (peso escurrido menor); depende del país y la marca
+\bleche (evaporada|condensada)\b,lata,400,390,410,,media,,
+\bleche\b,lata,400,390,410,,baja,,se asume evaporada o condensada
+\btomates?\b|\bjitomates?\b,lata,400,240,800,,media,,lata estándar de 400 g (240 g escurrido)
+\bmaiz\b|\bchoclo\b,lata,340,250,425,,baja,,
+\b(garbanzos?|frijoles?|frejoles?|judias?|alubias?|lentejas?)\b,lata,400,240,570,,baja,,peso bruto; escurridas ≈ 240 g
+\bsal\b,pizca,0.4,0.3,0.5,,media,,
+\bpimienta\b,pizca,0.3,0.2,0.4,,media,,
+\b(oregano|comino|canela|nuez moscada|pimenton|curry|cilantro|perejil|albahaca|tomillo|romero|jengibre|cayena|cardamomo|paprika)\b,pizca,0.3,0.2,0.5,,media,,especia o hierba seca
+\b(azucar|harina|maicena|bicarbonato)\b,pizca,0.5,0.3,1,,baja,,
+\bsal\b,pellizco,0.4,0.3,0.5,,media,,
+\bpimienta\b,pellizco,0.3,0.2,0.4,,media,,
+\b(oregano|comino|canela|nuez moscada|pimenton|curry|azucar)\b,pellizco,0.3,0.2,0.5,,baja,,
+\baceite\b,chorro,,,,15,media,,chorro de aceite (≈ 1 cucharada)
+\bvinagre\b,chorro,,,,15,media,,
+\b(vino|licor|brandy|cognac|whisky|ron|pisco)\b,chorro,,,,30,baja,,
+\bleche\b|\bcrema\b|\bnata\b,chorro,,,,30,baja,,
+\bsalsa de soja\b|\bsillao\b|\bsalsa (inglesa|worcestershire)\b,chorro,,,,10,baja,,
+\b(vino|cava|champan)\b,copa,,,,150,media,,copa de vino
+\b(nueces?|almendras?|avellanas?|pistachos?|mani|cacahuetes?|frutos secos|pasas|castañas?)\b,puñado,30,20,50,,baja,,
+\b(perejil|cilantro|culantro|albahaca|rucula|espinacas?|lechuga)\b,puñado,15,8,30,,baja,,
+\barroz\b,puñado,50,30,80,,baja,,
+\blechugas?\b,unidad,300,200,500,,baja,,cogollo/cabeza mediana
+\btortillas?\b,unidad,30,20,50,,baja,,de maíz ≈ 30 g; de harina de trigo pesa más
+\bpastillas?\b|\bcubitos?\b,unidad,10,8,12,,media,,pastilla de caldo
+\blangostinos?\b,unidad,30,20,45,,baja,,
+\bgambas?\b,unidad,20,10,35,,baja,,
+\bcamarones?\b,unidad,8,5,15,,baja,,camarón mediano pelado

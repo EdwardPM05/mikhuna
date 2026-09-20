@@ -53,6 +53,8 @@ def main() -> None:
                     "d": bool(i["parseo_dudoso"]), "a": bool(i["es_animal_o_derivado"]), "k": texto(i["ingrediente_id"]),
                     "cb": num(i["cantidad_base"]), "ub": texto(i["unidad_base"]), "mc": texto(i["metodo_cantidad"]),
                     "cp": num(i["cantidad_por_racion"]), "cs": bool(i["cantidad_sospechosa"]),
+                    "ge": num(i["gramos_estimados"]), "gmin": num(i["gramos_est_min"]), "gmax": num(i["gramos_est_max"]),
+                    "me": num(i["ml_estimados"]), "pc": texto(i["peso_confianza"]),
                 })
         flags = 0
         for clave, col in (("veg", "apta_vegetariana"), ("vegan", "apta_vegana"), ("conflicto", "dieta_en_conflicto"),

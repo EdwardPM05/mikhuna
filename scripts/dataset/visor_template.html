@@ -144,7 +144,10 @@
     if (g.cb==null) return '<span style="color:var(--muted)">sin dato</span>';
     const rango = g.cm && g.ub ? "–"+fmt(g.cm,g.ub) : "";
     const m = METODO[g.mc] || ["",""];
-    return `<b>${fmt(g.cb,g.ub)}</b>${rango}${m[0]?`<span class="b ${m[1]==="warn"?"d":m[1]}" title="método: ${g.mc}">${m[0]}</span>`:""}${g.cs?'<span class="b d">revisar</span>':""}`;
+    // conteos ('2 limones'): la tabla de pesos estima gramos; se muestra aparte, con rango y confianza
+    const est = g.ge!=null ? `${fmt(g.ge,"g")} (${fmt(g.gmin,"g")}–${fmt(g.gmax,"g")})` : g.me!=null ? `${fmt(g.me,"ml")}` : "";
+    const lineaEst = est ? `<div style="font-size:12px;color:var(--muted)">≈ ${est} <span class="b ${g.pc==="alta"?"c":g.pc==="baja"?"d":"h"}" title="confianza del peso estimado">est. ${g.pc}</span></div>` : "";
+    return `<b>${fmt(g.cb,g.ub)}</b>${rango}${m[0]?`<span class="b ${m[1]==="warn"?"d":m[1]}" title="método: ${g.mc}">${m[0]}</span>`:""}${g.cs?'<span class="b d">revisar</span>':""}${lineaEst}`;
   }
 
   async function abrir(i){

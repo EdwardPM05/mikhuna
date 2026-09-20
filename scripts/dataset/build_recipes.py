@@ -45,10 +45,11 @@ CATALOGO = {
 }
 
 UNIDADES = (
-    r"kilogramos?|kilos?|kgs?|gramos?|grs?|g|litros?|lts?|l|mililitros?|ml|cc|cl|"
+    r"kilogramos?|kilos?|kgs?|k|gramos?|grs?|g|litros?|lts?|l|mililitros?|ml|cc|cl|"
     r"cucharadas?|cucharaditas?|cucharillas?|cuchara|cdas?|cdtas?|tazas?|vasos?|puñados?|pizcas?|chorros?|chorritos?|"
     r"dientes?|hojas?|ramas?|ramitas?|manojos?|latas?|paquetes?|sobres?|unidades?|"
-    r"rodajas?|lonchas?|filetes?|trozos?|onzas?|oz|libras?|lb|cabezas?|atados?|tallos?|pedazos?"
+    r"rodajas?|lonchas?|filetes?|trozos?|onzas?|oz|libras?|lb|cabezas?|atados?|tallos?|pedazos?|"
+    r"piezas?|rebanadas?|láminas?|botes?|tarros?|botellas?|barras?|copas?|pellizcos?|ramitos?"
 )
 
 # unidad cruda -> (unidad_base, factor, tipo)
@@ -75,7 +76,9 @@ CONVERSION = {
 SINGULAR = {"dientes": "diente", "hojas": "hoja", "ramas": "rama", "ramitas": "ramita", "manojos": "manojo", "latas": "lata",
             "paquetes": "paquete", "sobres": "sobre", "unidades": "unidad", "rodajas": "rodaja", "lonchas": "loncha",
             "filetes": "filete", "trozos": "trozo", "puñados": "puñado", "pizcas": "pizca", "chorros": "chorro",
-            "chorritos": "chorrito", "cabezas": "cabeza", "atados": "atado", "tallos": "tallo", "pedazos": "pedazo"}
+            "chorritos": "chorrito", "cabezas": "cabeza", "atados": "atado", "tallos": "tallo", "pedazos": "pedazo",
+            "piezas": "pieza", "rebanadas": "rebanada", "láminas": "lámina", "botes": "bote", "tarros": "tarro",
+            "botellas": "botella", "barras": "barra", "copas": "copa", "pellizcos": "pellizco", "ramitos": "ramito"}
 AL_GUSTO = re.compile(r"\b(al gusto|a gusto|c/n|cantidad necesaria|necesario|necesaria|un poco|lo justo|cantidad suficiente)\b", re.I)
 EQUIVALENCIA = re.compile(r"\(\s*(?:aprox\.?\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|gr|grs|gramos|ml|l|lt|litros?|cc)\s*(?:\.|[/,-][^)]*)?\)", re.I)
 FRACCIONES = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125}
@@ -401,6 +404,12 @@ def normalizar_cantidad(cantidad, cantidad_max, unidad, texto: str, nombre: str 
              "metodo_cantidad": "sin_dato"}
     texto = texto or ""
     tiene_cantidad = cantidad is not None and not pd.isna(cantidad)
+    if tiene_cantidad and unidad == "k":
+        # "1 k (2 lb)" = un kilo; "500 k" solo puede ser gramos mal abreviados. Es una interpretación: se marca aproximada.
+        f = 1000 if cantidad < 20 else 1
+        return {"cantidad_base": round(cantidad * f, 1),
+                "cantidad_base_max": round(cantidad_max * f, 1) if cantidad_max and not pd.isna(cantidad_max) else None,
+                "unidad_base": "g", "tipo_cantidad": "peso", "metodo_cantidad": "conversion_aproximada"}
     if tiene_cantidad and unidad in CONVERSION:
         base, factor, tipo = CONVERSION[unidad]
         return {"cantidad_base": round(cantidad * factor, 1),
@@ -424,6 +433,34 @@ def normalizar_cantidad(cantidad, cantidad_max, unidad, texto: str, nombre: str 
             "unidad_base": u, "tipo_cantidad": "conteo", "metodo_cantidad": "conteo"}
 
 
+def cargar_pesos() -> dict[str, list[dict]]:
+    """Lee pesos_por_unidad.csv y lo agrupa por unidad. Cada fila trae regex, peso típico/mín/máx y confianza."""
+    tabla = pd.read_csv(Path(__file__).parent / "pesos_por_unidad.csv", keep_default_na=False)
+    por_unidad: dict[str, list[dict]] = {}
+    for _, f in tabla.iterrows():
+        por_unidad.setdefault(f["unidad"], []).append({
+            "rx": re.compile(f["patron"]), "patron": f["patron"],
+            "g": float(f["g_tipico"]) if f["g_tipico"] != "" else None,
+            "gmin": float(f["g_min"]) if f["g_min"] != "" else None,
+            "gmax": float(f["g_max"]) if f["g_max"] != "" else None,
+            "ml": float(f["ml_tipico"]) if f["ml_tipico"] != "" else None,
+            "confianza": f["confianza"], "paises": set(x for x in f["paises"].split("|") if x),
+        })
+    return por_unidad
+
+
+def estimar_peso(pesos: dict, nombre: str, unidad_base: str, pais) -> dict | None:
+    """Primera regla que calce con el nombre (sin tildes) para esa unidad; las reglas por país aplican solo en esos países."""
+    limpio = sin_tildes(str(nombre).lower())
+    unidad_base = {"pieza": "unidad", "ramito": "rama", "ramita": "rama"}.get(unidad_base, unidad_base)
+    for regla in pesos.get(unidad_base, []):
+        if regla["paises"] and pais not in regla["paises"]:
+            continue
+        if regla["rx"].search(limpio):
+            return regla
+    return None
+
+
 def id_catalogo(nombre: str) -> str | None:
     palabras = set(re.findall(r"[a-záéíóúñ]+", nombre.lower()))
     for id_, claves in CATALOGO.items():
@@ -432,7 +469,7 @@ def id_catalogo(nombre: str) -> str | None:
     return None
 
 
-_MOJIBAKE = re.compile(r"[ÂÃâ][\x80-\xbf€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡-¿]+")
+_MOJIBAKE = re.compile(r"[ÂÃâð][\x80-\xbf€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡-¿]+")
 
 
 def arreglar_mojibake(texto):
@@ -603,6 +640,27 @@ def main() -> None:
         | ((ub == "unidad") & (cb >= 50))
         | (cb == 0)
     )
+    # peso estimado de los conteos ('2 limones' -> ~120 g) con la tabla; se guarda aparte de la medida real
+    pesos = cargar_pesos()
+    pais_por_receta = recetas.set_index("receta_id")["pais"]
+    est = [None] * len(ingredientes)
+    aplicable = (ingredientes["tipo_cantidad"] == "conteo") & ~ingredientes["cantidad_sospechosa"]
+    for k, (fila, ok) in enumerate(zip(ingredientes.itertuples(index=False), aplicable)):
+        if ok:
+            est[k] = estimar_peso(pesos, fila.nombre, fila.unidad_base, pais_por_receta.get(fila.receta_id))
+    q = ingredientes["cantidad_base"]
+    ingredientes["gramos_estimados"] = [round(q.iat[k] * e["g"], 1) if e and e["g"] is not None else None for k, e in enumerate(est)]
+    ingredientes["gramos_est_min"] = [round(q.iat[k] * e["gmin"], 1) if e and e["gmin"] is not None else None for k, e in enumerate(est)]
+    ingredientes["gramos_est_max"] = [round(q.iat[k] * e["gmax"], 1) if e and e["gmax"] is not None else None for k, e in enumerate(est)]
+    ingredientes["ml_estimados"] = [round(q.iat[k] * e["ml"], 1) if e and e["ml"] is not None else None for k, e in enumerate(est)]
+    ingredientes["peso_confianza"] = [e["confianza"] if e else None for e in est]
+    ingredientes["peso_regla"] = [e["patron"] if e else None for e in est]
+    # gramos totales: la medida real si existe; si no, la estimada (y se dice cuál es cuál)
+    real = ingredientes["unidad_base"] == "g"
+    ingredientes["gramos_totales"] = ingredientes["cantidad_base"].where(real & ~ingredientes["cantidad_sospechosa"]).fillna(ingredientes["gramos_estimados"])
+    ingredientes["origen_gramos"] = ["medida" if r_ else ("estimada" if pd.notna(g) else None)
+                                     for r_, g in zip(real & ~ingredientes["cantidad_sospechosa"], ingredientes["gramos_estimados"])]
+
     # cantidad por porción: solo si la receta declara comensales y la cantidad es creíble; si no, queda vacía
     comensales = ingredientes["receta_id"].map(recetas.set_index("receta_id")["comensales"])
     escalable = (ub.isin(["g", "ml"]) | (ingredientes["tipo_cantidad"] == "conteo")) & ~ingredientes["cantidad_sospechosa"]
@@ -653,6 +711,14 @@ def main() -> None:
     m = ingredientes["metodo_cantidad"].value_counts(normalize=True)
     print("Cantidades por método:", {k: f"{v:.1%}" for k, v in m.items()})
     print(f"Cantidades sospechosas (para revisar): {int(ingredientes['cantidad_sospechosa'].sum()):,}")
+    conteo = ingredientes[(ingredientes["tipo_cantidad"] == "conteo") & ~ingredientes["cantidad_sospechosa"]]
+    con_peso = conteo["gramos_estimados"].notna() | conteo["ml_estimados"].notna()
+    print(f"Conteos con peso/volumen estimado por la tabla: {con_peso.mean():.1%} de {len(conteo):,} "
+          f"| confianza: {conteo['peso_confianza'].value_counts().to_dict()}")
+    print(f"Gramos totales conocidos: {ingredientes['gramos_totales'].notna().mean():.1%} de todos los ingredientes "
+          f"({(ingredientes['origen_gramos'] == 'medida').mean():.1%} medida real, {(ingredientes['origen_gramos'] == 'estimada').mean():.1%} estimada)")
+    sin = conteo[~con_peso].groupby(["unidad_base", conteo["nombre"].str.split().str[0]]).size().sort_values(ascending=False).head(15)
+    print("Sin regla, más frecuentes (ampliar tabla):", ", ".join(f"{n}/{u}:{c}" for (u, n), c in sin.items()))
     print(f"Con cantidad utilizable (g/ml/conteo): {(ingredientes['cantidad_base'].notna()).mean():.1%} | "
           f"con cantidad por porción: {ingredientes['cantidad_por_racion'].notna().mean():.1%}")
     print(f"Salida en: {out.resolve()}")
