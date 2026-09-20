@@ -135,24 +135,64 @@ def dividir_ingredientes(texto) -> list[str]:
     return [re.sub(r"[.\s]+$", "", p).strip() for p in partes if p.strip()]
 
 
-def dividir_ingredientes_pegados(texto) -> list[str]:
-    """Heurística para train/valid/test, donde vienen pegados: 'camaronesMantecaSal2 cdas. de yogur50 gr. de queso'.
+CONECTORES = {"de", "del", "la", "el", "los", "las", "con", "y", "o", "a", "e", "u", "al", "en", "por", "para",
+              "hasta", "unos", "unas", "cada", "más", "mas", "entre", "aprox", "aproximadamente"}
 
-    Corta en minúscula→Mayúscula sin espacio, en letra→dígito sin espacio, y antes de un número
-    precedido de una palabra (excepto 'de', 'con', etc., para no romper '1 lata de 400 gr').
-    Es aproximado: las filas resultantes se marcan con parseo_heuristico=True.
+
+def _cortar_pegados(t: str) -> list[str]:
+    """Corta un fragmento sin comas: minúscula→Mayúscula, letra→dígito y 'palabra 3 cosa' (salvo tras conectores)."""
+    t = re.sub(r"(?<=[a-záéíóúñ)\.])(?=[A-ZÁÉÍÓÚÑ])", "|", t)
+    t = re.sub(r"(?<=[a-záéíóúñ)])(?=\d)", "|", t)
+    cortes, ultimo = [], 0
+    for m in re.finditer(r"(?<=[a-záéíóúñ])\s+(?=\d+(?:[.,/]\d+)?\s+[a-záéíóúñA-Z])", t):
+        previa = re.search(r"([a-záéíóúñ]+)$", t[:m.start()], re.I)
+        if previa and previa.group(1).lower() in CONECTORES:
+            continue
+        cortes.append((ultimo, m.start()))
+        ultimo = m.end()
+    cortes.append((ultimo, len(t)))
+    return ["".join(t[a:b]) for a, b in cortes]
+
+
+SOLO_CANTIDAD = re.compile(
+    rf"^(?:\d+(?:[.,/]\d+)?|[½¼¾⅓⅔⅛])(?:\s*(?:\d+/\d+|[½¼¾⅓⅔⅛]))?(?:\s*(?:{UNIDADES})\.?)?$", re.I)
+NOTA_ENTRE_PARENTESIS = re.compile(r"^\([^)]*\)$")
+MODIFICADOR = re.compile(r"^[a-záéíóúñ]+(?:ado|ada|ados|adas|ido|ida|idos|idas)$")
+
+
+def dividir_ingredientes_pegados(texto) -> list[str]:
+    """Heurística para train/valid/test: combina comas (fuera de paréntesis) con cortes por mayúscula/dígito.
+
+    'camaronesMantecaSal2 cdas. de yogur50 gr. de queso' y '3 dientes de ajo, machacados 4 chalotes' se dividen
+    bien. Un fragmento suelto tipo 'machacados' se pega al ingrediente anterior. Es aproximado: parseo_heuristico=True.
     """
     if not isinstance(texto, str) or not texto.strip():
         return []
-    t = re.sub(r"(?<=[a-záéíóúñ\)\.])(?=[A-ZÁÉÍÓÚÑ])", "|", texto)
-    t = re.sub(r"(?<=[a-záéíóúñ\)])(?=\d)", "|", t)
-    t = re.sub(r"(?<=[a-záéíóúñ])\s+(?=\d+(?:[.,/]\d+)?\s+[a-záéíóúñA-Z])", "|", t)
-    partes = []
-    for p in t.split("|"):
-        p = p.strip(" .,;")
-        if p:
-            partes.append(p)
-    return partes
+    texto = re.sub(r"^\s*Ingredientes\s*:?\s*", "", texto.strip(), flags=re.I)
+    if texto.startswith("["):
+        return a_lista(texto)
+    piezas: list[str] = []
+    # la fuente Nestlé separa ingredientes con varios espacios seguidos ('... (40 g)      2 Huevos (100 g)')
+    for tramo in re.split(r"\s{2,}|\n", texto):
+        for bloque in (dividir_ingredientes(tramo) if "," in tramo else [tramo]):
+            piezas.extend(x.strip(" .,;") for x in "|".join(_cortar_pegados(bloque)).split("|"))
+    resultado: list[str] = []
+    pendiente = ""  # cantidad suelta ('4 cucharadas') que pertenece al siguiente ingrediente
+    for x in piezas:
+        if not x:
+            continue
+        if SOLO_CANTIDAD.match(x):
+            pendiente = f"{pendiente} {x}".strip()
+        elif NOTA_ENTRE_PARENTESIS.match(x) and resultado:
+            resultado[-1] = f"{resultado[-1]} {x}"
+        elif resultado and not pendiente and MODIFICADOR.match(x.lower()):
+            resultado[-1] = f"{resultado[-1]}, {x}"
+        else:
+            resultado.append(f"{pendiente} {x}".strip())
+            pendiente = ""
+    if pendiente:
+        resultado.append(pendiente)
+    return resultado
 
 
 ABREVIATURAS = ("gr", "kg", "cdas", "cda", "cdta", "cdtas", "aprox", "ej", "etc", "min", "seg", "pág", "vs", "sr", "sra", "no")
@@ -213,30 +253,73 @@ def pais_por_dominio(url) -> str | None:
     return DOMINIO_PAIS.get(m.group(1)) if m else None
 
 
+NUM = r"\d+(?:[.,]\d+)?"
+FRAC_UNI = "½¼¾⅓⅔⅛"
+
+
+def _a_float(txt: str) -> float:
+    return float(txt.replace(",", "."))
+
+
+def extraer_cantidad(resto: str) -> tuple[float | None, float | None, str]:
+    """Devuelve (cantidad, cantidad_max, resto). Entiende '2', '1/2', '1 1/2', '1 ½', '½', 'una', '1 o 2', '1 y ½'."""
+    cantidad = None
+    m = re.match(rf"^(\d+)\s+(\d+)\s*/\s*(\d+)", resto)
+    if m:
+        cantidad = int(m.group(1)) + int(m.group(2)) / int(m.group(3))
+    if cantidad is None:
+        m = re.match(r"^(\d+)\s*/\s*(\d+)", resto)
+        if m:
+            cantidad = int(m.group(1)) / int(m.group(2))
+    if cantidad is None:
+        m = re.match(rf"^({NUM})?\s*([{FRAC_UNI}])", resto)
+        if m:
+            cantidad = (_a_float(m.group(1)) if m.group(1) else 0.0) + FRACCIONES[m.group(2)]
+    if cantidad is None:
+        m = re.match(rf"^({NUM})", resto)
+        if m:
+            cantidad = _a_float(m.group(1))
+    if cantidad is None:
+        m = re.match(r"^(un|una|uno|media|medio)\b", resto, re.I)
+        if m:
+            cantidad = 0.5 if m.group(1).lower() in ("media", "medio") else 1.0
+    if cantidad is None:
+        return None, None, resto
+    resto = resto[m.end():].strip()
+    maximo = None
+    r = re.match(rf"^(?:y|o|a|-|–)\s*({NUM}|[{FRAC_UNI}])(?!\s*/)\s*", resto)
+    if r:
+        valor = FRACCIONES[r.group(1)] if r.group(1) in FRACCIONES else _a_float(r.group(1))
+        if r.group(1) in FRACCIONES and resto.lower().startswith("y"):
+            cantidad += valor          # '1 y ½' = 1.5
+        else:
+            maximo = cantidad + valor if r.group(1) in FRACCIONES else valor   # '1 o 2' = rango
+        resto = resto[r.end():].strip()
+    return cantidad, maximo, resto
+
+
 def parsear_ingrediente(linea: str) -> dict:
     """'2 dientes de ajo picados (opcional)' -> cantidad 2, unidad dientes, nombre 'ajo picados'."""
     resto = linea.strip().lstrip("*- ").strip()
     opcional = bool(re.search(r"\bopcional\b", resto, re.I))
-    cantidad = None
-    m = re.match(r"^(\d+(?:[.,]\d+)?)?\s*([½¼¾⅓⅔⅛])?", resto)
-    if m and (m.group(1) or m.group(2)):
-        cantidad = float(m.group(1).replace(",", ".")) if m.group(1) else 0.0
-        if m.group(2):
-            cantidad += FRACCIONES[m.group(2)]
-        resto = resto[m.end():].strip()
-    else:
-        m = re.match(r"^(\d+)\s*/\s*(\d+)", resto)
-        if m:
-            cantidad = int(m.group(1)) / int(m.group(2))
-            resto = resto[m.end():].strip()
+    cantidad, cantidad_max, resto = extraer_cantidad(resto)
     unidad = None
     m = re.match(rf"^({UNIDADES})\b\.?\s*", resto, re.I)
     if m:
         unidad = m.group(1).lower()
         resto = resto[m.end():]
-    nombre = re.sub(r"^(de|del|de la|de los)\s+", "", resto.strip(), flags=re.I)
+    nombre = resto.strip()
+    for _ in range(4):  # quita paréntesis y conectores iniciales: '(7 oz) de queso', 'y pimienta', 'con ajo'
+        antes = nombre
+        nombre = re.sub(r"^\([^)]*\)\s*", "", nombre)
+        nombre = re.sub(r"^(?:de la|de los|de las|del|de|y|o|con|para)\s+", "", nombre, flags=re.I)
+        if nombre == antes:
+            break
     nombre = re.sub(r"\(.*?\)", "", nombre).strip(" .,;")
-    return {"cantidad": cantidad, "unidad": unidad, "nombre": nombre.lower(), "opcional": opcional}
+    return {"cantidad": cantidad, "cantidad_max": cantidad_max, "unidad": unidad,
+            "nombre": nombre.lower(), "opcional": opcional}
+
+
 
 
 def id_catalogo(nombre: str) -> str | None:
@@ -247,7 +330,38 @@ def id_catalogo(nombre: str) -> str | None:
     return None
 
 
+_MOJIBAKE = re.compile(r"[ÂÃâ][\x80-\xbf€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡-¿]+")
+
+
+def arreglar_mojibake(texto):
+    """UTF-8 leído como Latin-1/cp1252 ('orÃ©gano' -> 'orégano'). Intenta todo el texto y, si está mezclado, por tramos."""
+    if not isinstance(texto, str) or not _MOJIBAKE.search(texto):
+        return texto
+    for codec in ("cp1252", "latin-1"):
+        try:
+            return texto.encode(codec).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+
+    def tramo(m):
+        for codec in ("cp1252", "latin-1"):
+            try:
+                return m.group().encode(codec).decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                pass
+        return m.group()
+
+    return _MOJIBAKE.sub(tramo, texto)
+
+
 def leer_fuente(ruta: Path, nombre: str) -> pd.DataFrame:
+    df = _leer_fuente(ruta, nombre)
+    for col in ("nombre", "ingredientes_raw", "pasos_raw"):
+        df[col] = df[col].map(arreglar_mojibake)
+    return df
+
+
+def _leer_fuente(ruta: Path, nombre: str) -> pd.DataFrame:
     df = pd.read_csv(ruta)
     if nombre in ("train.csv", "valid.csv", "test.csv"):
         # esquema de 5 columnas: ingredientes pegados sin separador -> no se pueden dividir
@@ -278,6 +392,47 @@ def leer_fuente(ruta: Path, nombre: str) -> pd.DataFrame:
     })
 
 
+def limpiar_titulo(titulo: str) -> str:
+    t = re.sub(r"\s+", " ", str(titulo)).strip()
+    if len(t) > 3 and t == t.upper():
+        t = t.lower()
+    return t[:1].upper() + t[1:]
+
+
+# texto que los scrapers dejaron pegado al final de los pasos (no son pasos)
+CORTE_PASOS = re.compile(r"^(maridaje|valor nutricional|informaci[oó]n nutricional|calor[ií]as|nutrici[oó]n)\b", re.I)
+META_PASO = re.compile(r"^(?:\d+(?:[.,]\d+)?\s*)?(?:calor[ií]as?|kcal)\b.*$|^\d+\s*(?:personas|raciones|porciones|comensales)$", re.I)
+
+
+def limpiar_pasos(pasos: list[str]) -> list[str]:
+    limpios = []
+    for p in pasos:
+        if CORTE_PASOS.match(p):
+            break
+        if META_PASO.match(p.strip()):
+            continue
+        limpios.append(p)
+    return limpios
+
+
+# --- verificación de dietas: la etiqueta de la fuente NO es confiable (hay 'vegetarianas' con pollo) ---
+CARNE = re.compile(
+    r"\b(pollo|pechuga|carne|res|ternera|cerdo|chancho|jam[oó]n|tocino|bacon|panceta|pescado|at[uú]n|salm[oó]n|"
+    r"bacalao|merluza|camar[oó]n|camarones|langostinos?|gambas?|chorizo|salchichas?|morcilla|lomo|pavo|cordero|"
+    r"anchoas?|calamar(?:es)?|pulpo|mariscos?|almejas?|mejillones|choritos|gelatina|manteca de cerdo|"
+    r"consom[eé]|caldo de (?:pollo|carne|pescado|res))\b", re.I)
+ANIMAL_EXTRA = re.compile(
+    r"\b(huevos?|yemas?|claras?|leche|queso|mantequilla|manteca|crema|nata|yogur(?:t)?|miel|reques[oó]n|ricota|mozzarella|parmesano)\b", re.I)
+VEGETAL = re.compile(
+    r"vegan|vegetal|soja|soya|seit[aá]n|tofu|de (?:arroz|almendras?|avena|coco|anacardos?|cacahuete|man[ií]|cacao)|sin lactosa", re.I)
+
+
+def es_animal(nombre: str, incluir_lacteos_huevo: bool) -> bool:
+    if VEGETAL.search(nombre):
+        return False
+    return bool(CARNE.search(nombre) or (incluir_lacteos_huevo and ANIMAL_EXTRA.search(nombre)))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--downloads", default=str(Path.home() / "Downloads"))
@@ -299,6 +454,8 @@ def main() -> None:
     total_bruto = len(todo)
 
     todo = todo[todo["nombre"].notna() & todo["pasos_raw"].notna()].copy()
+    todo["nombre"] = todo["nombre"].map(limpiar_titulo)
+    todo = todo[todo["nombre"].str.len() >= 4].copy()
     todo["_clave"] = todo["url"].map(clave_url).fillna(todo["nombre"].map(clave_titulo))
     # first() toma el primer valor no nulo por columna: la fuente de mayor prioridad gana, las demás rellenan huecos
     recetas = todo.groupby("_clave", sort=False).first().reset_index(drop=True)
@@ -309,9 +466,9 @@ def main() -> None:
 
     recetas["categorias"] = recetas["categorias"].map(lambda v: v if isinstance(v, list) else [])
     cat = recetas["categorias"].map(lambda v: " ".join(v).lower())
-    recetas["apta_vegetariana"] = cat.str.contains("vegetarian")
-    recetas["apta_vegana"] = cat.str.contains("vegan")
-    lista_pasos = recetas["pasos_raw"].map(dividir_pasos)
+    recetas["etiqueta_vegetariana_fuente"] = cat.str.contains("vegetarian")
+    recetas["etiqueta_vegana_fuente"] = cat.str.contains("vegan")
+    lista_pasos = recetas["pasos_raw"].map(lambda t: limpiar_pasos(dividir_pasos(t)) or dividir_pasos(t))
     recetas["pasos"] = lista_pasos.map(lambda v: json.dumps(v, ensure_ascii=False))
     recetas["num_pasos"] = lista_pasos.map(len)
 
@@ -335,6 +492,35 @@ def main() -> None:
                               "parseo_dudoso": len(p["nombre"]) > 60 or not p["nombre"]})
     ingredientes = pd.DataFrame(filas_ing)
 
+    n_ing = ingredientes.groupby("receta_id").size()
+    recetas["num_ingredientes"] = recetas["receta_id"].map(n_ing).fillna(0).astype(int)
+    recetas["ingredientes_incompletos"] = recetas["num_ingredientes"] < 2
+    ingredientes["es_animal"] = ingredientes["nombre"].map(lambda n: es_animal(n, False))
+    ingredientes["es_animal_o_derivado"] = ingredientes["nombre"].map(lambda n: es_animal(n, True))
+    con_carne = set(ingredientes.loc[ingredientes["es_animal"], "receta_id"])
+    con_derivado = set(ingredientes.loc[ingredientes["es_animal_o_derivado"], "receta_id"])
+    # solo se marca 'apta' si la fuente lo dice Y los ingredientes lo confirman; sin ingredientes fiables, no se marca
+    fiable = ~recetas["ingredientes_incompletos"]
+    recetas["apta_vegetariana"] = recetas["etiqueta_vegetariana_fuente"] & fiable & ~recetas["receta_id"].isin(con_carne)
+    recetas["apta_vegana"] = recetas["etiqueta_vegana_fuente"] & fiable & ~recetas["receta_id"].isin(con_derivado)
+    recetas["dieta_en_conflicto"] = (recetas["etiqueta_vegetariana_fuente"] & ~recetas["apta_vegetariana"]) |                                     (recetas["etiqueta_vegana_fuente"] & ~recetas["apta_vegana"])
+
+    # señales para revisión manual
+    recetas["duracion_sospechosa"] = recetas["duracion_min"] > 600
+    recetas["comensales_sospechoso"] = recetas["comensales"] > 30
+    k = recetas["nombre"].map(clave_titulo)
+    ing_por_receta = ingredientes.groupby("receta_id")["nombre"].apply(set)
+    recetas["posible_duplicado_de"] = pd.NA
+    for _, grupo in recetas.groupby(k):
+        if len(grupo) < 2:
+            continue
+        ids = grupo["receta_id"].tolist()
+        for a in range(len(ids)):
+            for b in range(a + 1, len(ids)):
+                A, B = ing_por_receta.get(ids[a], set()), ing_por_receta.get(ids[b], set())
+                if A and B and len(A & B) / len(A | B) >= 0.6:
+                    recetas.loc[recetas["receta_id"] == ids[b], "posible_duplicado_de"] = ids[a]
+
     recetas_out = recetas.drop(columns=["pasos_raw"]).assign(categorias=recetas["categorias"].map(json.dumps))
     recetas_out.to_csv(out / "recipes.csv", index=False, encoding="utf-8")
     ingredientes.to_csv(out / "ingredients.csv", index=False, encoding="utf-8")
@@ -345,7 +531,8 @@ def main() -> None:
     print(f"Recetas con pasos separados: {(recetas['num_pasos'] > 1).mean():.1%} | país conocido: {recetas['pais'].notna().mean():.1%} "
           f"({int(recetas['pais_inferido'].sum()):,} inferidos por dominio)")
     print("Por país:", recetas["pais"].value_counts().head(8).to_dict())
-    print(f"Perú: {(recetas['pais'] == 'Perú').sum():,} | vegetarianas: {int(recetas['apta_vegetariana'].sum()):,} | veganas: {int(recetas['apta_vegana'].sum()):,}")
+    print(f"Perú: {(recetas['pais'] == 'Perú').sum():,} | vegetarianas verificadas: {int(recetas['apta_vegetariana'].sum()):,} (fuente decía {int(recetas['etiqueta_vegetariana_fuente'].sum()):,}) | veganas verificadas: {int(recetas['apta_vegana'].sum()):,} (fuente decía {int(recetas['etiqueta_vegana_fuente'].sum()):,})")
+    print(f"Incompletas (<2 ingredientes): {int(recetas['ingredientes_incompletos'].sum()):,} | dieta en conflicto: {int(recetas['dieta_en_conflicto'].sum()):,} | posibles duplicados: {int(recetas['posible_duplicado_de'].notna().sum()):,}")
     print(f"Ingredientes que calzan con tu catálogo: {ingredientes['ingrediente_id'].notna().mean():.1%}")
     print(f"Salida en: {out.resolve()}")
 
