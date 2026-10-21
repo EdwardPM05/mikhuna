@@ -1,58 +1,95 @@
-# Generación de planes con IA (Gemini)
+# Plan semanal con IA (Gemini) y reglas
 
-Estado: **la Edge Function ya está desplegada y probada, pero el wizard todavía no la usa.** `generarPlanSemana()` (en `lib/catalogo.ts`) sigue siendo lo que arma el plan por defecto. Esto es intencional: primero se valida que la IA responda bien de forma aislada, y recién después se conecta al flujo real.
+Estado: **conectado al wizard.** Al terminar el wizard, la pantalla "Generando" arma el plan: primero con Gemini y, si
+eso falla, con las reglas en el mismo celular. El plan queda guardado en `planSemana` (con `planFuente: "ia"` o
+`"reglas"`) y "Tu semana" lo muestra con una frase de por qué cada plato le sirve. Por qué se diseñó así:
+[ENFOQUE.md](ENFOQUE.md).
 
 ## Cómo funciona
 
 ```
-App (RN)  →  supabase.functions.invoke("generar-plan")  →  Edge Function (Deno)  →  Gemini API
+Wizard ("¿Quién eres?", días, presupuesto, antojos, restricciones, electrodomésticos)
+   │
+   ▼  lib/ia.ts → armarPlan()
+App ──supabase.functions.invoke("generar-plan")──▶ Edge Function (Deno)
+                                                     1. valida el perfil (solo valores conocidos)
+                                                     2. _shared/plan.ts: filtra restricciones y cocina,
+                                                        ordena por perfil → hasta 30 candidatas
+                                                     3. Gemini elige 1 id por día + "por qué te va"
+                                                        (el esquema solo admite ids de las candidatas)
+                                                     4. completa lo que falte con las reglas
+   ◀────────────── { platos: [{ dia, recetaId, razon }], fuente: "ia" | "reglas" }
+   │
+   └─ si no responde en 15 s, falla o devuelve algo que no calza: armarPlanLocal() en el celular
 ```
 
-- La API key de Gemini vive como **secreto del proyecto de Supabase** (`GEMINI_API_KEY`), nunca en el cliente ni en el repo. Se configura con `supabase secrets set GEMINI_API_KEY=...`.
-- El modelo se puede cambiar por proyecto con el secreto `GEMINI_MODEL` (por defecto `gemini-2.5-flash`). Las cuentas nuevas de Google AI Studio ya no tienen acceso a `gemini-2.5-flash` y responden `404`; en ese caso: `supabase secrets set GEMINI_MODEL=gemini-3.8-flash` y volver a desplegar.
-- La Edge Function está en [`supabase/functions/generar-plan/index.ts`](../supabase/functions/generar-plan/index.ts), desplegada con:
+- **La IA no inventa recetas ni precios.** Solo elige entre las recetas de
+  [`supabase/functions/_shared/recetas.ts`](../supabase/functions/_shared/recetas.ts), las mismas que muestra la app.
+  Precios, cantidades y la lista de compras salen siempre del catálogo.
+- **Lo que no se negocia lo decide código.** [`_shared/plan.ts`](../supabase/functions/_shared/plan.ts) saca antes de
+  llegar a Gemini toda receta que choque con las restricciones (vegano, vegetariano, pescetariano, sin gluten, sin
+  lactosa) o que pida un electrodoméstico que la persona no tiene. La app vuelve a revisar la respuesta antes de usarla.
+- **Lo que es criterio lo decide la IA:** quién es (estudiante, foráneo, con un objetivo), su nivel en la cocina, sus
+  antojos y su presupuesto, y que la semana varíe.
+- **Las reglas son el respaldo y también la base:** sin internet, sin cuota o sin `GEMINI_API_KEY`, el plan sale igual.
+  `armarPlanLocal()` da puntos por perfil, castiga repetir y nunca se salta una restricción: si nada cumple, devuelve un
+  plan vacío y la app le dice a la persona qué ajustar.
+- **Un solo código para la app y la función.** `supabase/functions/_shared/` lo importan `lib/catalogo.ts`, `lib/ia.ts`
+  y la Edge Function. Por eso importa con extensión `.ts` (Deno lo exige) y el `tsconfig.json` de la app tiene
+  `allowImportingTsExtensions`.
+
+## Configuración
+
+- La API key de Gemini vive como **secreto del proyecto de Supabase** (`GEMINI_API_KEY`), nunca en el cliente ni en el
+  repo: `npx supabase secrets set GEMINI_API_KEY=...`.
+- El modelo se cambia con el secreto `GEMINI_MODEL` (por defecto `gemini-2.5-flash`). Las cuentas nuevas de Google AI
+  Studio ya no tienen acceso a `gemini-2.5-flash` y responden `404`; en ese caso:
+  `npx supabase secrets set GEMINI_MODEL=gemini-3.8-flash`.
+- Desplegar (después de cambiar la función **o** cualquier archivo de `_shared/`):
   ```bash
-  npx supabase link --project-ref lvkweyiwzkqtojlylinc
   npx supabase functions deploy generar-plan --no-verify-jwt
   ```
-- El cliente de la app está en [`lib/ia.ts`](../lib/ia.ts): `generarPlanConIA({ dias, antojos, restricciones, presupuesto, personas })` devuelve el mismo shape (`DiaConReceta[]`) que `generarPlanSemana()`, así que es un reemplazo directo cuando se decida usarlo.
+  Si la función desplegada es más vieja que la app, la respuesta no calza y la app usa las reglas: el plan sale igual,
+  pero sin "✨ Elegida para ti con IA".
 
-## Por qué el precio NO lo decide la IA
+## Probarla
 
-Le pedimos a Gemini nombre del plato, ingredientes y pasos — nunca precios. Los precios se calculan del lado de la Edge Function/app cruzando cada ingrediente contra `INGREDIENTES` (el catálogo real de tiendas y precios en `lib/catalogo.ts`):
+**Las reglas**, sin internet ni Supabase: `npm test`. Prueba, entre otras cosas, todas las combinaciones de
+restricciones con varios tipos de cocina y perfiles: ningún plan puede traer algo que la persona no pueda comer o
+preparar.
 
-- Si el ingrediente que sugiere la IA calza con uno de nuestro catálogo (se lo pasamos en el prompt con sus ids, y el `responseSchema` de Gemini restringe `ingredienteId` a esa lista exacta con un `enum`), se usa el precio más barato disponible.
-- Si no calza (carne, condimentos, arroz, etc. — cosas que hoy no están en `INGREDIENTES`), se usa un estimado fijo por ítem, claramente marcado como estimado en el código (`ESTIMADO_INGREDIENTE_SIN_CATALOGO` en `lib/ia.ts`).
-
-Esto evita que un modelo alucine un precio y engañe al usuario sobre su presupuesto real.
-
-## Probarla manualmente
-
-La función exige la sesión de un usuario real (ver más abajo), así que hace falta su `access_token`. El más fácil de
-sacar es el de la app web en modo desarrollo: en la consola del navegador,
+**La función**, que exige la sesión de un usuario real, así que hace falta su `access_token`. El más fácil de sacar es
+el de la app web en modo desarrollo: en la consola del navegador,
 `JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.includes("auth-token")))).access_token`.
 
 ```bash
 curl -s -X POST "https://lvkweyiwzkqtojlylinc.supabase.co/functions/v1/generar-plan" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
-  -d '{"dias":["Lunes","Martes"],"antojos":["criolla"],"restricciones":[],"presupuesto":150,"personas":2}'
+  -d '{"dias":["Lunes","Martes"],"antojos":["criolla"],"restricciones":["vegano"],"electrodomesticos":["cocina"],
+       "presupuesto":150,"personas":2,"perfil":"foraneo","region":"sierra","objetivo":null,"nivelCocina":"principiante"}'
 ```
 
 Sin token responde `401`; con valores que la app no manda (un día mal escrito, un antojo inventado, más de 12
-personas) responde `400`.
+personas) responde `400`. Los errores de Gemini se ven en los logs: `npx supabase functions logs generar-plan`.
 
-## Limitaciones conocidas
+## Seguridad y costo
 
-- La capa gratuita de Gemini (Google AI Studio) tiene límite de requests por minuto y por día — no hay caché todavía, así que cada llamada gasta cuota. Antes de conectarla al wizard en producción conviene cachear el plan generado (por ejemplo, por hash de las respuestas del wizard) para no volver a pedirle a Gemini el mismo plan dos veces.
-- **Quién puede llamarla:** se despliega con `--no-verify-jwt`, pero la propia función pide un usuario con sesión (`auth.getUser()` con el header `Authorization`) y responde `401` si no lo hay. El anon key solo no basta: va dentro del APK y cualquiera podría gastarse la cuota de Gemini con él.
-- **Entrada cerrada:** solo acepta los días, antojos y restricciones que existen en la app, un presupuesto entre 0 y 10 000 y de 1 a 12 personas; todo lo demás es `400`. Es lo que evita que alguien meta instrucciones en el prompt o listas enormes. Si se agrega un antojo o restricción al catálogo, hay que sumarlo también en `ANTOJOS_VALIDOS` / `RESTRICCIONES_VALIDAS` de la función.
-- **Errores:** el detalle de lo que respondió Gemini se queda en los logs de la función (`npx supabase functions logs generar-plan`); a la app solo le llega un mensaje genérico.
-- **Falta todavía:** un límite de llamadas por usuario (por ejemplo, una tabla `uso_ia` con un máximo por hora). Hoy un usuario con sesión puede llamarla todas las veces que quiera.
-- **Reintentos:** la Edge Function reintenta hasta 3 veces con espera creciente (0.8 s, 1.6 s, 3.2 s) cuando Gemini responde `503` (sobrecargado) o `429` (cuota); son errores transitorios frecuentes en la capa gratis, sobre todo en horas pico. Si se agotan los reintentos responde `502` con un mensaje claro.
-- **Sin fallback automático todavía:** si Gemini sigue fallando, `generarPlanConIA()` lanza un error — quien lo use debe decidir si cae de vuelta a `generarPlanSemana()`. Una cadena de respaldo (otro proveedor gratuito como Groq u OpenRouter) es una mejora posible, pero requiere otra API key.
-- **Sin caché:** cada llamada gasta cuota; conviene cachear por hash de las respuestas del wizard antes de conectarlo.
+- **Quién puede llamarla:** se despliega con `--no-verify-jwt`, pero la propia función pide un usuario con sesión
+  (`auth.getUser()` con el header `Authorization`) y responde `401` si no lo hay. El anon key solo no basta: va dentro
+  del APK y cualquiera podría gastarse la cuota de Gemini con él.
+- **Entrada cerrada:** solo acepta días, antojos, restricciones, electrodomésticos, perfil, región, objetivo y nivel que
+  existen en la app, un presupuesto entre 0 y 10 000 y de 1 a 12 personas. En el prompt no entra texto libre del
+  usuario, así que no se le pueden meter instrucciones.
+- **Costo:** el prompt lleva como mucho 30 recetas resumidas y la respuesta está limitada a 2 048 tokens. Hay hasta 3
+  reintentos ante `503`/`429` (0.8 s, 1.6 s, 3.2 s).
+- **Falta todavía:** un límite de llamadas por usuario (por ejemplo, una tabla `uso_ia` con un máximo por hora) y
+  cachear el plan por perfil para no pedirle a Gemini dos veces lo mismo.
 
-## Página de prueba
+## Agregar recetas
 
-Para probar la función con opciones reales (días, antojos, restricciones, presupuesto) sin escribir `curl`, se puede servir una página HTML estática que le pegue directo a la Edge Function (el CORS ya está abierto; la página tiene que mandar el `access_token` de un usuario). No está en el repo porque solo es una herramienta local de pruebas.
+Se agregan en `_shared/recetas.ts` con todos sus campos (dieta, gluten, lactosa, electrodomésticos, dificultad,
+región, etiquetas) y `npm test` revisa que sean coherentes. Si es un antojo, restricción o electrodoméstico nuevo,
+también va en `ANTOJOS_IDS` / `RESTRICCIONES_IDS` / `ELECTRODOMESTICOS_IDS` de `_shared/plan.ts` y en
+`lib/catalogo.ts`. Después, volver a desplegar la función. Cuando el dataset se cargue a Supabase, esta lista se
+reemplaza por esa tabla ([DATASET.md](DATASET.md)).

@@ -96,7 +96,10 @@ Puntaje = impacto × confianza ÷ esfuerzo (1–5 cada uno).
 | 4 | **`generar-plan` v2**: filtro SQL → Gemini elige por id con "por qué te va" → respaldo por reglas. Conectarla al wizard. | Es la IA de la presentación, hecha sin que pueda inventar. | 5×4÷3 ≈ **6.7** |
 | 5 | **Ampliar el catálogo de ingredientes** con los ~50 más frecuentes del dataset, con precios de referencia marcados como demo. | "Dónde comprar cada ingrediente" solo convence si la lista sale completa. | 4×4÷3 ≈ **5.3** |
 
-Los puntos 1 y 2 se pueden hacer ya. El 3, apenas estén los CSV. El 4 depende del 3.
+**Estado (21 oct 2026):** el 1, el 2 y el 4 ya están hechos con las 20 recetas del catálogo
+(`supabase/functions/_shared/recetas.ts`): Gemini elige entre ellas y las reglas son el respaldo. Falta el 3 (cargar el
+dataset, que necesita los CSV) para pasar de 20 recetas a miles, y el 5. Cuando el dataset esté en Supabase, solo
+cambia de dónde salen las candidatas; el resto del diseño queda igual. Ver [IA.md](IA.md).
 
 ## Lo que no vamos a hacer (por ahora)
 

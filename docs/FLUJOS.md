@@ -44,17 +44,21 @@ Desde el tab "Plan" siempre se puede volver a armar un plan nuevo, y desde cualq
 
 ## 2. Flujo A — Plan semanal
 
-Wizard de 7 pasos, todos usando `WizardScreen` (barra de progreso + Papi Papa caminando), guardando cada respuesta en `PlanWizardContext`:
+Wizard de 8 pasos, todos usando `WizardScreen` (barra de progreso + Papi Papa caminando), guardando cada respuesta en `PlanWizardContext`:
 
-1. **`negocio`** — ¿dónde haces tus compras? (negocio de referencia para el distrito).
-2. **`hogar`** — ¿para cuántos cocinas? (número de personas).
-3. **`dias`** — ¿qué días cocinarás esta semana?
-4. **`presupuesto`** — presupuesto semanal (slider S/40–S/600).
-5. **`antojo`** — hasta 3 antojos (criolla, rápida, saludable, menú del día, vegetariana, fit/proteica, económica, chifa).
-6. **`restricciones`** — alergias/restricciones alimentarias.
-7. **`electrodomesticos`** — qué tiene en su cocina, con la escena interactiva `KitchenScene` (niveles básica/promedio/avanzada).
+1. **`quien-eres`** — ¿quién eres? Recién cocino solo / extraño la comida de mi tierra (costa, sierra o selva) / tengo
+   un objetivo (más sano, ganar músculo, bajar de peso) / solo quiero comer rico, y qué tal le va en la cocina.
+2. **`negocio`** — ¿dónde haces tus compras? (negocio de referencia para el distrito).
+3. **`hogar`** — ¿para cuántos cocinas? (número de personas).
+4. **`dias`** — ¿qué días cocinarás esta semana?
+5. **`presupuesto`** — presupuesto semanal (slider S/40–S/600).
+6. **`antojo`** — hasta 3 antojos (criolla, rápida, saludable, menú del día, vegetariana, fit/proteica, económica, chifa).
+7. **`restricciones`** — alergias/restricciones alimentarias.
+8. **`electrodomesticos`** — qué tiene en su cocina, con la escena interactiva `KitchenScene` (niveles básica/promedio/avanzada).
 
-Al terminar, **`generando`** simula armar el plan (Papi Papa cocinando, con una variante regional al azar) y llama a `generarPlanSemana()`, que cruza los días elegidos con las recetas que matchean los antojos.
+Al terminar, **`generando`** arma el plan de verdad mientras Papi Papa cocina: le pide a la Edge Function que Gemini
+elija entre las recetas que cumplen sus restricciones y su cocina, y si eso falla lo arma con las mismas reglas en el
+celular. El plan se guarda (`planSemana`) y no cambia hasta rehacer el wizard. Detalle en [IA.md](IA.md).
 
 ### Home del plan (`(tabs)/index.tsx`)
 
@@ -63,7 +67,8 @@ Con el plan ya armado, la pantalla "Plan" muestra:
 - Saludo + racha (días planeados) + comidas listas.
 - Tarjeta de **billetera**: disponible para gastar, gastado vs. presupuesto, con una barra de color dinámico (verde/naranja/rojo según qué tan cerca está del límite).
 - **Misión del día**: marcar 3 ingredientes de la lista como comprados — dato real de `PlanWizardContext`, no inventado.
-- **Tu semana**: un plato por día. Tocar un plato abre `(plan)/receta/[id]` con ingredientes y pasos de preparación; los ingredientes que también existen en `INGREDIENTES` se marcan como "Ya comprado" si ya se marcaron en la lista de compras.
+- **Tu semana**: un plato por día, con una frase de por qué le sirve ("✨ Elegida para ti con IA" si la armó Gemini).
+  Si ninguna receta cumple a la vez sus restricciones y su cocina, se le dice y se le ofrece ajustar el plan. Tocar un plato abre `(plan)/receta/[id]` con ingredientes y pasos de preparación; los ingredientes que también existen en `INGREDIENTES` se marcan como "Ya comprado" si ya se marcaron en la lista de compras.
 
 ### Lista de compras
 

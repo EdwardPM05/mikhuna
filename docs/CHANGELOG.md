@@ -20,6 +20,17 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 21 oct 2026
 
+### Plan según quién eres, con IA que elige entre recetas reales
+- **Qué:** paso nuevo "¿Quién eres?" al inicio del wizard; el plan ahora respeta restricciones, electrodomésticos y
+  presupuesto (antes un vegano que pedía criolla recibía lomo saltado); 12 recetas nuevas (sierra, selva, veganas, sin
+  gluten, con horno, de otras cocinas); Gemini elige entre esas recetas y explica por qué, con las reglas de respaldo.
+  Las recetas y las reglas viven en `supabase/functions/_shared/` y las usan la app y la función. `npm test` corre las
+  pruebas de las reglas. Diseño en [ENFOQUE.md](ENFOQUE.md), detalle en [IA.md](IA.md).
+- **Fuera del código:** volver a desplegar la función (`npx supabase functions deploy generar-plan --no-verify-jwt`).
+  Mientras no se despliegue, la app arma el plan con las reglas.
+- **Cómo regresar:** `git revert` de los commits (del más nuevo al más viejo) y volver a desplegar la función. Los planes
+  guardados con la versión nueva traen campos de más (`perfil`, `planSemana`…) que la versión vieja ignora.
+
 ### Revisión de seguridad y de errores
 Se revisó toda la app y la parte de Supabase. Cada arreglo tiene su commit (`git log --since=2026-10-21`).
 - **IA (`generar-plan`):** exige un usuario con sesión, solo acepta valores que la app puede mandar, limita los tokens
