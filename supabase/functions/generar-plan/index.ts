@@ -1,12 +1,29 @@
 // Edge Function: generar-plan
 //
-// Recibe las respuestas del wizard de Flujo A (días, antojos, restricciones,
-// presupuesto, personas) y le pide a Gemini una lista de platos peruanos que
-// calcen, uno por día. La IA nunca decide precios: solo devuelve nombres de
-// plato, ingredientes y pasos; el precio se resuelve del lado de la app
-// contra el catálogo real de ingredientes (lib/catalogo.ts).
+// Recibe el perfil del wizard (quién es, qué puede comer, qué tiene en su
+// cocina, días, antojos, presupuesto) y devuelve un plato por día con una frase
+// de por qué le sirve. Gemini NO inventa recetas: las reglas compartidas con la
+// app (_shared/plan.ts) filtran primero lo que no se negocia (restricciones,
+// electrodomésticos) y Gemini solo puede elegir ids de esa lista. Si Gemini
+// falla, responde el plan de las reglas. Los precios los pone la app.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  ANTOJOS_IDS,
+  DIAS,
+  ELECTRODOMESTICOS_IDS,
+  NIVELES_COCINA,
+  OBJETIVOS,
+  PERFILES,
+  REGIONES,
+  RESTRICCIONES_IDS,
+  armarPlanLocal,
+  candidatas,
+  razonDe,
+  type DiaPlan,
+  type PreferenciasPlan,
+} from "../_shared/plan.ts";
+import type { Receta } from "../_shared/recetas.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // Las cuentas nuevas de Google AI Studio ya no tienen acceso a gemini-2.5-flash;
@@ -20,97 +37,9 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Catálogo mínimo para que la IA reutilice nuestros ids cuando el
-// ingrediente que sugiere ya existe en nuestra base de datos de compras.
-// Si mantienes lib/catalogo.ts, mantén esta lista en sincronía a mano.
-const INGREDIENTES_CATALOGO: Record<string, string> = {
-  tomate: "Tomate",
-  cebolla: "Cebolla morada",
-  aji: "Ají amarillo",
-  ajo: "Ajo",
-  palta: "Palta fuerte",
-  limon: "Limón",
-  choclo: "Choclo",
-  culantro: "Culantro",
-};
-
-const ANTOJOS_VALIDOS = [
-  "criolla",
-  "rapida",
-  "saludable",
-  "menu-dia",
-  "vegetariana",
-  "proteica",
-  "economica",
-  "antojo-chifa",
-];
-
-// Deben coincidir con DIAS y RESTRICCIONES de lib/catalogo.ts.
-const DIAS_VALIDOS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const RESTRICCIONES_VALIDAS = ["ninguna", "vegetariano", "vegano", "sin-gluten", "sin-lactosa", "pescetariano"];
-
-type PlatoRequest = {
-  dias: string[];
-  antojos: string[];
-  restricciones: string[];
-  presupuesto: number;
-  personas: number;
-};
-
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    platos: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          dia: { type: "string" },
-          nombre: { type: "string" },
-          antojoId: { type: "string", enum: ANTOJOS_VALIDOS },
-          tiempoMin: { type: "integer" },
-          ingredientes: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                texto: { type: "string" },
-                ingredienteId: { type: "string", enum: Object.keys(INGREDIENTES_CATALOGO) },
-              },
-              required: ["texto"],
-            },
-          },
-          pasos: { type: "array", items: { type: "string" } },
-        },
-        required: ["dia", "nombre", "antojoId", "tiempoMin", "ingredientes", "pasos"],
-      },
-    },
-  },
-  required: ["platos"],
-};
-
-function construirPrompt(body: PlatoRequest): string {
-  const catalogoTexto = Object.entries(INGREDIENTES_CATALOGO)
-    .map(([id, nombre]) => `- ${id}: ${nombre}`)
-    .join("\n");
-
-  return `Eres un chef peruano armando el plan de comidas semanal de un usuario en una app llamada Mikhuna.
-
-Días que quiere cocinar: ${body.dias.join(", ")}
-Antojos elegidos (usa SOLO estos valores para "antojoId", uno por plato): ${body.antojos.length ? body.antojos.join(", ") : ANTOJOS_VALIDOS.join(", ")}
-Restricciones alimentarias: ${body.restricciones.length ? body.restricciones.join(", ") : "ninguna"}
-Presupuesto semanal aproximado: S/ ${body.presupuesto}
-Número de personas por plato: ${body.personas}
-
-Propón un plato peruano real y distinto para cada día de la lista de arriba, que respete las restricciones alimentarias y calce con alguno de los antojos elegidos.
-
-Para cada ingrediente de cada plato: si el ingrediente corresponde a uno de estos ids de nuestro catálogo, inclúyelo como "ingredienteId" exacto (en minúsculas, tal cual aparece aquí); si no corresponde a ninguno, omite el campo "ingredienteId" y deja solo el texto.
-
-Catálogo de ingredientes con id conocido:
-${catalogoTexto}
-
-No inventes precios ni los incluyas en la respuesta. Responde solo con platos peruanos reales y pasos de preparación breves y claros en español.`;
-}
+// Cuántas recetas ve Gemini para elegir: suficientes para variar la semana,
+// pocas para que el prompt sea corto y barato.
+const MAX_CANDIDATAS = 30;
 
 function json(cuerpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(cuerpo), {
@@ -127,26 +56,45 @@ function listaDe(valor: unknown, permitidos: string[]): valor is string[] {
   );
 }
 
-// Todo lo que llega se interpola en el prompt, así que solo aceptamos los
-// valores que la app puede mandar: nada de texto libre que cambie las
-// instrucciones ni listas enormes que disparen el costo en tokens.
-function validar(body: unknown): PlatoRequest | null {
+function unoDe<T extends string>(valor: unknown, permitidos: readonly T[]): T | null | undefined {
+  if (valor === null || valor === undefined) return null;
+  return typeof valor === "string" && (permitidos as readonly string[]).includes(valor) ? (valor as T) : undefined;
+}
+
+// Todo lo que llega termina en el prompt, así que solo se aceptan los valores
+// que la app puede mandar: nada de texto libre que cambie las instrucciones ni
+// listas enormes que disparen el costo en tokens.
+function validar(body: unknown): PreferenciasPlan | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
   const antojos = b.antojos ?? [];
   const restricciones = b.restricciones ?? [];
-  if (!listaDe(b.dias, DIAS_VALIDOS) || b.dias.length === 0) return null;
-  if (!listaDe(antojos, ANTOJOS_VALIDOS)) return null;
-  if (!listaDe(restricciones, RESTRICCIONES_VALIDAS)) return null;
+  const electrodomesticos = b.electrodomesticos ?? [];
+  if (!listaDe(b.dias, DIAS) || b.dias.length === 0) return null;
+  if (!listaDe(antojos, ANTOJOS_IDS)) return null;
+  if (!listaDe(restricciones, RESTRICCIONES_IDS)) return null;
+  if (!listaDe(electrodomesticos, ELECTRODOMESTICOS_IDS)) return null;
   if (typeof b.presupuesto !== "number" || !Number.isFinite(b.presupuesto)) return null;
   if (b.presupuesto < 0 || b.presupuesto > 10000) return null;
   if (!Number.isInteger(b.personas) || (b.personas as number) < 1 || (b.personas as number) > 12) return null;
+  const perfil = unoDe(b.perfil, PERFILES);
+  const region = unoDe(b.region, REGIONES);
+  const objetivo = unoDe(b.objetivo, OBJETIVOS);
+  const nivelCocina = unoDe(b.nivelCocina, NIVELES_COCINA);
+  if (perfil === undefined || region === undefined || objetivo === undefined || nivelCocina === undefined) {
+    return null;
+  }
   return {
     dias: b.dias,
     antojos,
     restricciones,
+    electrodomesticos,
     presupuesto: b.presupuesto,
     personas: b.personas as number,
+    perfil,
+    region,
+    objetivo,
+    nivelCocina,
   };
 }
 
@@ -163,6 +111,82 @@ async function hayUsuario(req: Request): Promise<boolean> {
   return !error && !!data.user;
 }
 
+const PERFIL_TEXTO: Record<string, string> = {
+  estudiante: "Es estudiante y recién está aprendiendo a cocinar solo.",
+  foraneo: "Vive lejos de su tierra y extraña su comida de siempre.",
+  objetivo: "Tiene un objetivo con su alimentación.",
+  "comer-rico": "Solo quiere comer rico durante la semana.",
+};
+const REGION_TEXTO: Record<string, string> = {
+  costa: "Extraña la comida de la costa.",
+  sierra: "Extraña la comida de la sierra.",
+  selva: "Extraña la comida de la selva.",
+};
+const OBJETIVO_TEXTO: Record<string, string> = {
+  sano: "Quiere comer más sano.",
+  musculo: "Quiere ganar masa muscular.",
+  bajar: "Quiere bajar de peso.",
+};
+const NIVEL_TEXTO: Record<string, string> = {
+  principiante: "En la cocina es principiante.",
+  "me-defiendo": "En la cocina se defiende.",
+  experto: "Le encanta cocinar y se anima con recetas elaboradas.",
+};
+
+function describirReceta(r: Receta): string {
+  const ingredientes = r.ingredientes.map((i) => i.texto).join("; ");
+  return `- ${r.id} | ${r.nombre} | ${r.region ?? r.cocina} | dificultad ${r.dificultad}/3 | ${r.tiempoMin} min | ` +
+    `S/ ${r.precio} | ${r.etiquetas.join(", ")} | ${ingredientes}`;
+}
+
+function construirPrompt(p: PreferenciasPlan, lista: Receta[]): string {
+  const sobreElUsuario = [
+    p.perfil ? PERFIL_TEXTO[p.perfil] : "",
+    p.region ? REGION_TEXTO[p.region] : "",
+    p.objetivo ? OBJETIVO_TEXTO[p.objetivo] : "",
+    p.nivelCocina ? NIVEL_TEXTO[p.nivelCocina] : "",
+  ].filter(Boolean).join(" ");
+
+  return `Eres el asistente de Mikhuna, una app peruana que arma el plan de comidas de la semana.
+
+Sobre el usuario: ${sobreElUsuario || "No dijo nada más sobre sí mismo."}
+Antojos de esta semana: ${p.antojos.length ? p.antojos.join(", ") : "ninguno en especial"}
+Cocina para ${p.personas} persona(s). Presupuesto aproximado de la semana: S/ ${p.presupuesto}.
+Días que va a cocinar: ${p.dias.join(", ")}
+
+Estas son las ÚNICAS recetas que puedes usar. Ya cumplen sus restricciones alimentarias y se pueden hacer con lo que
+tiene en su cocina (id | nombre | origen | dificultad | tiempo | precio | estilo | ingredientes):
+${lista.map(describirReceta).join("\n")}
+
+Elige una receta por cada día, usando exactamente el id de la lista. Piensa en esta persona: su nivel en la cocina, su
+objetivo, la comida que extraña, sus antojos y su presupuesto. Varía la semana (no repitas una receta si hay otras que
+le sirvan) y evita poner dos días seguidos platos muy parecidos.
+
+Para cada día escribe en "razon" una frase corta en español (máximo 90 caracteres), hablándole de tú, de por qué ese
+plato le sirve (por ejemplo: "Fácil y con proteína para después del gym"). No inventes datos que no estén en la lista.`;
+}
+
+function esquemaRespuesta(p: PreferenciasPlan, lista: Receta[]) {
+  return {
+    type: "object",
+    properties: {
+      platos: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            dia: { type: "string", enum: p.dias },
+            recetaId: { type: "string", enum: lista.map((r) => r.id) },
+            razon: { type: "string" },
+          },
+          required: ["dia", "recetaId", "razon"],
+        },
+      },
+    },
+    required: ["platos"],
+  };
+}
+
 function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -170,7 +194,7 @@ function esperar(ms: number) {
 // Gemini en la capa gratis devuelve 503 (sobrecargado) o 429 (cuota) seguido,
 // sobre todo en horas pico. Son errores transitorios: unos segundos después
 // suele funcionar, así que reintentamos con backoff antes de rendirnos.
-async function llamarGeminiConReintentos(prompt: string, intentos = 3): Promise<Response> {
+async function llamarGeminiConReintentos(cuerpo: unknown, intentos = 3): Promise<Response> {
   let ultimaRespuesta: Response | null = null;
   for (let intento = 0; intento < intentos; intento++) {
     // La clave va en un header y no en la URL para que no aparezca en
@@ -178,15 +202,7 @@ async function llamarGeminiConReintentos(prompt: string, intentos = 3): Promise<
     const res = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY! },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0.8,
-          maxOutputTokens: 8192,
-        },
-      }),
+      body: JSON.stringify(cuerpo),
     });
 
     if (res.ok) return res;
@@ -200,14 +216,28 @@ async function llamarGeminiConReintentos(prompt: string, intentos = 3): Promise<
   return ultimaRespuesta!;
 }
 
+// Lo que devuelve Gemini se revisa igual: cada día pedido con un id de la
+// lista. Un día que falte o venga mal se completa con el plan de las reglas.
+function completarPlan(p: PreferenciasPlan, lista: Receta[], platos: unknown): DiaPlan[] {
+  const porId = new Map(lista.map((r) => [r.id, r]));
+  const deReglas = armarPlanLocal(p, lista);
+  return deReglas.map((porDefecto) => {
+    const elegido = Array.isArray(platos)
+      ? platos.find((x) => x && typeof x === "object" && x.dia === porDefecto.dia)
+      : undefined;
+    const receta = elegido && typeof elegido.recetaId === "string" ? porId.get(elegido.recetaId) : undefined;
+    if (!receta) return porDefecto;
+    const razon = typeof elegido.razon === "string" ? elegido.razon.trim().slice(0, 140) : "";
+    return { dia: porDefecto.dia, recetaId: receta.id, razon: razon || razonDe(receta, p) };
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
   if (req.method !== "POST") return json({ error: "Método no permitido" }, 405);
-
-  if (!GEMINI_API_KEY) return json({ error: "GEMINI_API_KEY no configurada" }, 500);
 
   if (!(await hayUsuario(req))) return json({ error: "Inicia sesión para generar un plan" }, 401);
 
@@ -218,40 +248,47 @@ Deno.serve(async (req: Request) => {
     return json({ error: "JSON inválido" }, 400);
   }
 
-  const body = validar(crudo);
-  if (!body) return json({ error: "Datos del plan inválidos" }, 400);
+  const p = validar(crudo);
+  if (!p) return json({ error: "Datos del plan inválidos" }, 400);
 
-  const prompt = construirPrompt(body);
+  const lista = candidatas(p, MAX_CANDIDATAS);
+  // Nada cumple sus restricciones con su cocina: mejor un plan vacío que uno
+  // que se las salte.
+  if (lista.length === 0) return json({ platos: [], fuente: "reglas" });
+
+  if (!GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY no configurada; se responde con las reglas");
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
+  }
 
   // Los detalles de Gemini se quedan en los logs de la función: pueden traer
   // información interna que no le sirve a la app.
   try {
-    const geminiRes = await llamarGeminiConReintentos(prompt);
+    const geminiRes = await llamarGeminiConReintentos({
+      contents: [{ parts: [{ text: construirPrompt(p, lista) }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: esquemaRespuesta(p, lista),
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      },
+    });
 
     if (!geminiRes.ok) {
       console.error("Gemini falló", geminiRes.status, await geminiRes.text());
-      const sobrecargado = geminiRes.status === 503 || geminiRes.status === 429;
-      return json(
-        {
-          error: sobrecargado
-            ? "Gemini está saturado ahora mismo, intenta de nuevo en unos segundos"
-            : "Gemini falló",
-          status: geminiRes.status,
-        },
-        502,
-      );
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
     }
 
     const data = await geminiRes.json();
     const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!texto) {
       console.error("Respuesta vacía de Gemini", JSON.stringify(data));
-      return json({ error: "Respuesta vacía de Gemini" }, 502);
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
     }
 
-    return json(JSON.parse(texto));
+    return json({ platos: completarPlan(p, lista, JSON.parse(texto).platos), fuente: "ia" });
   } catch (err) {
     console.error("Error inesperado en generar-plan", err);
-    return json({ error: "Error inesperado" }, 500);
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
   }
 });
