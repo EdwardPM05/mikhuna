@@ -17,6 +17,17 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ---
 
+## 20 oct 2026
+
+### Modelo de Gemini configurable (`GEMINI_MODEL`)
+- **Qué:** `generar-plan` lee el modelo del secreto `GEMINI_MODEL`; si no está, sigue usando `gemini-2.5-flash` (sin
+  cambio para el proyecto actual). Motivo: con una clave de Google AI Studio nueva, `gemini-2.5-flash` responde `404`
+  ("no longer available to new users"). Probado en un proyecto de Supabase nuevo con `GEMINI_MODEL=gemini-3.8-flash`:
+  devolvió un plan válido con `ingredienteId` del catálogo.
+- **Cómo regresar:** `git revert` del commit y volver a desplegar la función; `npx supabase secrets unset GEMINI_MODEL`.
+
+---
+
 ## 6 oct 2026
 
 ### Web: padding lateral corregido y app limitada al ancho de un celular

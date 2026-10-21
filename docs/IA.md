@@ -9,6 +9,7 @@ App (RN)  →  supabase.functions.invoke("generar-plan")  →  Edge Function (De
 ```
 
 - La API key de Gemini vive como **secreto del proyecto de Supabase** (`GEMINI_API_KEY`), nunca en el cliente ni en el repo. Se configura con `supabase secrets set GEMINI_API_KEY=...`.
+- El modelo se puede cambiar por proyecto con el secreto `GEMINI_MODEL` (por defecto `gemini-2.5-flash`). Las cuentas nuevas de Google AI Studio ya no tienen acceso a `gemini-2.5-flash` y responden `404`; en ese caso: `supabase secrets set GEMINI_MODEL=gemini-3.8-flash` y volver a desplegar.
 - La Edge Function está en [`supabase/functions/generar-plan/index.ts`](../supabase/functions/generar-plan/index.ts), desplegada con:
   ```bash
   npx supabase link --project-ref lpnujzuatgnekirfdxru

@@ -8,7 +8,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Las cuentas nuevas de Google AI Studio ya no tienen acceso a gemini-2.5-flash;
+// cada proyecto de Supabase puede fijar otro con `supabase secrets set GEMINI_MODEL=...`.
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
 const GEMINI_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
