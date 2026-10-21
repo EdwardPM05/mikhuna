@@ -100,7 +100,7 @@ const PALABRAS_SUELTAS = new Set(
 const DESPENSA = new Set(
   ("sal pimienta ajo cebolla aceite agua azucar laurel harina vino perejil oregano comino vinagre tomillo nuez " +
     "canela mostaza pimenton manteca mantequilla caldo levadura maicena romero curry paprika clavo albahaca " +
-    "hierbabuena mayonesa soja sillao pan colorante sazonador ajinomoto culantro").split(" "),
+    "hierbabuena mayonesa soja soya sillao sillau pan colorante sazonador ajinomoto culantro").split(" "),
 );
 const SINONIMOS: Record<string, string> = {
   aguacate: "palta", cilantro: "culantro", patata: "papa", judia: "frejol", frijol: "frejol",
@@ -263,8 +263,12 @@ const CON_TILDE: Record<string, string> = {
   aji: "ají", limon: "limón", champinon: "champiñón", platano: "plátano", brocoli: "brócoli", atun: "atún",
   salmon: "salmón", jamon: "jamón", frejol: "frejol", pimenton: "pimentón", calabacin: "calabacín",
 };
+// Cómo se muestra una clave: "aji" -> "ají".
+export function nombreDeClave(clave: string): string {
+  return CON_TILDE[clave] ?? clave;
+}
 function conArticulo(clave: string): string {
-  const nombre = CON_TILDE[clave] ?? clave;
+  const nombre = nombreDeClave(clave);
   return `${clave.endsWith("a") || clave === "carne" || clave === "leche" ? "la" : "el"} ${nombre}`;
 }
 

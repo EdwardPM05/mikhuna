@@ -8,6 +8,7 @@ import {
   clavesDe,
   dietasPermitidas,
   esReceta,
+  nombreDeClave,
   respetaRestricciones,
   sePuedePreparar,
 } from "../supabase/functions/_shared/plan.ts";
@@ -44,5 +45,7 @@ export async function recetasParecidas(receta: Receta, data: PlanData, cuantas =
 // Ingredientes que dos recetas tienen en común, para decir por qué se parecen.
 export function enComun(a: Receta, b: Receta): string[] {
   const deA = clavesDe(a);
-  return clavesDe(b).filter((c) => deA.includes(c));
+  return clavesDe(b)
+    .filter((c) => deA.includes(c))
+    .map(nombreDeClave);
 }
