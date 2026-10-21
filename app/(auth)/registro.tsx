@@ -129,8 +129,13 @@ export default function RegistroScreen() {
                 {espera > 0 ? `¿No llegó? Reenviar en ${espera} s` : "¿No llegó? Reenviar código"}
               </Text>
             </Pressable>
+            <View className="bg-white rounded-2xl border border-ink/10 px-4 py-3 mb-4">
+              <Text className="font-body text-xs text-ink/60 text-center">
+                ¿Te llegó un enlace en vez de un código? Ábrelo para confirmar tu cuenta y luego inicia sesión aquí.
+              </Text>
+            </View>
             <Pressable onPress={() => router.replace("/(auth)/login")} hitSlop={8}>
-              <Text className="font-body-semibold text-maroon text-center">Volver a iniciar sesión</Text>
+              <Text className="font-body-semibold text-maroon text-center">Ya confirmé, iniciar sesión</Text>
             </Pressable>
           </ScrollView>
         </KeyboardAvoidingView>
