@@ -20,6 +20,15 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Correos de registro y recuperación con diseño
+- **Qué:** `supabase/templates/confirmar-registro.html` y `recuperar-contrasena.html`: fondo crema, logo, Papi Papa,
+  saludo con el nombre del registro y el código en una caja grande punteada. Asuntos: "Tu código para entrar a
+  Mikhuna 🥔" y "Tu código para cambiar la contraseña 🔑". Las imágenes se cargan desde GitHub (el repo es público).
+- **Cómo se aplican:** `scripts/supabase/aplicar-plantillas-correo.ps1` las sube con la API de administración de
+  Supabase y solo cambia esos cuatro campos de Auth.
+- **Cómo regresar:** `git revert` del commit y, en el dashboard (Authentication → Emails), "Reset to default" en cada
+  plantilla.
+
 ### Registro confirmado con código
 - **Qué:** después de registrarse se escribe el código del correo y se entra directo (antes llegaba un enlace que no
   abría la app y la cuenta quedaba sin confirmar). El login ofrece "Confirmar con un código" a cuentas sin confirmar.

@@ -6,22 +6,18 @@
    - Sin sesión → `(auth)/login` (o `(auth)/registro` desde "Regístrate").
    - **Registro** → al crear la cuenta pide el código que llega al correo (`verifyOtp` tipo `email`) y entra directo
      a la app; se puede reenviar cada 60 s. Si alguien intenta entrar con una cuenta sin confirmar, el login le ofrece
-     "Confirmar con un código", que abre ese mismo paso. Requiere que la plantilla **Confirm signup** de Supabase
-     muestre `{{ .Token }}` (misma idea que la de recuperación, más abajo).
+     "Confirmar con un código", que abre ese mismo paso. Usa la plantilla `supabase/templates/confirmar-registro.html`
+     (más abajo, cómo subirla).
    - Con sesión y distrito ya elegido → `(tabs)` directo.
    - Con sesión y sin distrito (primera vez) → `(onboarding)/ubicacion`.
    - **"¿Olvidaste tu contraseña?"** en el login → `(auth)/recuperar`: el usuario escribe su correo, Supabase le manda un
      código (`resetPasswordForEmail`), y con el código y la contraseña nueva (`verifyOtp` tipo `recovery` +
      `updateUser`) entra directo a la app. Se usa código y no enlace porque la app no tiene deep links configurados.
 
-     Requiere que la plantilla **Reset Password** de Supabase (Authentication → Emails) muestre el código:
-
-     ```html
-     <h2>Recupera tu contraseña de Mikhuna</h2>
-     <p>Tu código es:</p>
-     <h1 style="letter-spacing: 6px">{{ .Token }}</h1>
-     <p>Escríbelo en la app junto con tu nueva contraseña. Si no lo pediste, ignora este correo.</p>
-     ```
+     Los correos de registro y recuperación tienen diseño propio (logo, Papi Papa y el código grande): sus plantillas
+     están en `supabase/templates/` y se suben a Supabase con
+     `powershell -ExecutionPolicy Bypass -File scripts/supabase/aplicar-plantillas-correo.ps1` (usa la sesión de
+     `npx supabase login`). Si se editan en el dashboard en vez de aquí, se pierden al volver a correr el script.
 
      Ojo: sin SMTP propio, Supabase solo envía correos a los miembros del equipo del proyecto y con un límite bajo
      por hora. Para usuarios reales hay que configurar un SMTP (Authentication → Emails → SMTP Settings).
