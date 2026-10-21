@@ -28,9 +28,12 @@ export default function CheckoutScreen() {
   const negocio = NEGOCIOS.find((n) => n.id === negocioId);
   const totalConPropina = total + propina;
   const faltaDireccion = direccion.trim().length === 0;
+  // El carrito ya lo exige, pero aquí se puede llegar de otra forma (volver
+  // atrás después de quitar productos, un enlace guardado).
+  const faltaParaMinimo = negocio ? Math.max(0, negocio.pedidoMinimo - total) : 0;
 
   async function confirmarPedido() {
-    if (!negocioId || items.length === 0 || enviando) return;
+    if (!negocioId || items.length === 0 || enviando || faltaDireccion || faltaParaMinimo > 0) return;
     setEnviando(true);
     setErrorEnvio(null);
     const { id, error } = await crear({
@@ -55,7 +58,13 @@ export default function CheckoutScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-4">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Text className="font-display-bold text-lg text-ink">Confirmar pedido</Text>
@@ -111,6 +120,9 @@ export default function CheckoutScreen() {
               <Pressable
                 key={m.id}
                 onPress={() => setMetodo(m.id)}
+                accessibilityRole="radio"
+                accessibilityLabel={m.nombre}
+                accessibilityState={{ checked: activo }}
                 className={`flex-row items-center rounded-2xl p-3.5 mb-2 border-2 active:opacity-80 ${
                   activo ? "border-chili bg-chili/5" : "border-ink/10 bg-white"
                 }`}
@@ -141,6 +153,9 @@ export default function CheckoutScreen() {
               <View key={p} className="flex-1 px-1">
                 <Pressable
                   onPress={() => setPropina(p)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={p === 0 ? "Sin propina" : `Propina de ${p} soles`}
+                  accessibilityState={{ checked: activo }}
                   className={`rounded-xl py-2.5 items-center border-2 active:opacity-80 ${
                     activo ? "border-chili bg-chili" : "border-ink/10 bg-white"
                   }`}
@@ -179,7 +194,11 @@ export default function CheckoutScreen() {
           <Text className="font-body-bold text-ink">Total a pagar</Text>
           <Text className="font-display-bold text-chili text-xl">S/ {totalConPropina.toFixed(2)}</Text>
         </View>
-        {faltaDireccion ? (
+        {faltaParaMinimo > 0 ? (
+          <Text className="font-body-semibold text-xs text-maroon text-center mb-2">
+            Te faltan S/ {faltaParaMinimo.toFixed(2)} para el pedido mínimo de {negocio?.nombre}.
+          </Text>
+        ) : faltaDireccion ? (
           <Text className="font-body-semibold text-xs text-maroon text-center mb-2">
             Escribe tu dirección para confirmar el pedido.
           </Text>
@@ -192,7 +211,7 @@ export default function CheckoutScreen() {
         ) : null}
         <BrandButton
           label={enviando ? "Enviando pedido..." : "Confirmar pedido"}
-          disabled={faltaDireccion || enviando}
+          disabled={faltaDireccion || faltaParaMinimo > 0 || enviando}
           onPress={confirmarPedido}
         />
       </View>
