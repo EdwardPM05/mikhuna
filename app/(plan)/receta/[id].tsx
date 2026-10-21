@@ -1,16 +1,54 @@
+import { useEffect, useState } from "react";
 import { Image } from "expo-image";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../../components/SafeAreaView";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanWizard } from "../../../context/PlanWizardContext";
-import { ANTOJOS, INGREDIENTES } from "../../../lib/catalogo";
+import { ANTOJOS, INGREDIENTES, type Receta } from "../../../lib/catalogo";
 import { recetaDelPlan } from "../../../lib/ia";
+import { buscarReceta, enComun, recetasParecidas } from "../../../lib/recetas";
 
 export default function RecetaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data } = usePlanWizard();
-  const receta = recetaDelPlan(data, id);
+  const local = recetaDelPlan(data, id);
+  // Una receta del dataset abierta desde "Recetas parecidas" no está en el
+  // plan: se trae de Supabase.
+  const [remota, setRemota] = useState<Receta | null | undefined>(local ? null : undefined);
+  const [parecidas, setParecidas] = useState<Receta[] | null>(null);
+  const receta = local ?? remota ?? undefined;
+
+  useEffect(() => {
+    if (local) return;
+    let vigente = true;
+    setRemota(undefined);
+    buscarReceta(id).then((r) => vigente && setRemota(r));
+    return () => {
+      vigente = false;
+    };
+  }, [id, local]);
+
+  const recetaId = receta?.id;
+  useEffect(() => {
+    if (!receta) return;
+    let vigente = true;
+    setParecidas(null);
+    recetasParecidas(receta, data).then((r) => vigente && setParecidas(r));
+    return () => {
+      vigente = false;
+    };
+    // Solo cuando cambia la receta o lo que la persona puede comer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recetaId, data.restricciones, data.electrodomesticos]);
+
+  if (!receta && remota === undefined) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream items-center justify-center px-6">
+        <ActivityIndicator color="#E5131B" />
+      </SafeAreaView>
+    );
+  }
 
   if (!receta) {
     return (
@@ -153,6 +191,42 @@ export default function RecetaScreen() {
               </View>
             ))}
           </View>
+
+          {parecidas === null ? (
+            <ActivityIndicator color="#E5131B" style={{ marginTop: 28 }} />
+          ) : parecidas.length > 0 ? (
+            <View style={{ marginTop: 28 }}>
+              <Text className="font-display-bold text-base text-ink mb-1">Recetas parecidas</Text>
+              <Text className="font-body text-xs text-ink/50 mb-3">
+                Recetas reales que usan los mismos ingredientes y que tú puedes comer.
+              </Text>
+              <View style={{ gap: 10 }}>
+                {parecidas.map((otra) => {
+                  const comunes = enComun(receta, otra);
+                  return (
+                    <Pressable
+                      key={otra.id}
+                      onPress={() => router.push(`/(plan)/receta/${otra.id}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver ${otra.nombre}`}
+                      className="flex-row items-center bg-white rounded-2xl border border-ink/10 p-4 active:opacity-70"
+                    >
+                      <View className="flex-1 mr-3">
+                        <Text className="font-body-extrabold text-sm text-ink mb-1" numberOfLines={2}>
+                          {otra.nombre}
+                        </Text>
+                        <Text className="font-body text-xs text-ink/50" numberOfLines={1}>
+                          {otra.tiempoMin} min · S/ {otra.precio}
+                          {comunes.length > 0 ? ` · También lleva ${comunes.slice(0, 3).join(", ")}` : ""}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="rgba(36,31,33,0.4)" />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
