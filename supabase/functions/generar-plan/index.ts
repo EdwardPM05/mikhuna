@@ -48,11 +48,26 @@ const MAX_CANDIDATAS = 20;
 
 // Elegir 7 ids de una lista no necesita que el modelo "piense" mucho, y
 // pensando tardaba más que el plazo. Cada generación de Gemini lo configura
-// distinto; para otros modelos no se manda nada.
+// distinto; para otros modelos no se manda nada. En Gemini 3 solo los Flash
+// aceptan "minimal": un Pro responde 400 y hay que pedirle "low".
 function configPensamiento(modelo: string, nivel: "minimal" | "low") {
   if (modelo.startsWith("gemini-2.5-flash")) return { thinkingConfig: { thinkingBudget: 0 } };
-  if (modelo.startsWith("gemini-3")) return { thinkingConfig: { thinkingLevel: nivel } };
+  if (modelo.startsWith("gemini-3")) {
+    return { thinkingConfig: { thinkingLevel: modelo.includes("flash") ? nivel : "low" } };
+  }
   return {};
+}
+
+// De un 400 de Gemini solo se guarda su mensaje corto ("Unknown name ...",
+// "thinking level is not supported ..."), sin caracteres raros: así el motivo
+// que llega a la app dice qué falló sin abrir los logs.
+function resumenDeError(cuerpo: string): string {
+  try {
+    const mensaje = (JSON.parse(cuerpo) as { error?: { message?: string } }).error?.message ?? "";
+    return mensaje.replace(/[^\w .,:'"()\-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 90);
+  } catch {
+    return "";
+  }
 }
 
 function json(cuerpo: unknown, status = 200): Response {
@@ -297,8 +312,10 @@ async function pedirPlan(
     }),
   });
   if (!res.ok) {
-    console.error(`Gemini (${v.nombre}, ${v.modelo}) falló`, res.status, await res.text());
-    throw new FalloGemini(String(res.status));
+    const cuerpo = await res.text();
+    console.error(`Gemini (${v.nombre}, ${v.modelo}) falló`, res.status, cuerpo);
+    const resumen = res.status === 400 ? resumenDeError(cuerpo) : "";
+    throw new FalloGemini(resumen ? `400 (${resumen})` : String(res.status));
   }
   const data = await res.json();
   const texto = data.candidates?.[0]?.content?.parts?.find((parte: { text?: string }) => parte.text)?.text;
