@@ -18,6 +18,31 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ---
 
+## 21 oct 2026
+
+### Revisión de seguridad y de errores
+Se revisó toda la app y la parte de Supabase. Cada arreglo tiene su commit (`git log --since=2026-10-21`).
+- **IA (`generar-plan`):** exige un usuario con sesión, solo acepta valores que la app puede mandar, limita los tokens
+  de salida, manda la clave de Gemini en un header y no devuelve el detalle de los errores.
+  **Fuera del código:** hay que volver a desplegarla (`npx supabase functions deploy generar-plan --no-verify-jwt`).
+  **Cómo regresar:** `git revert` del commit y volver a desplegar.
+- **Base de datos:** `20261021030000_limites_de_tamano.sql` pone topes de largo a los textos de `pedidos` y de tamaño a
+  `items` y `planes.datos`. **Fuera del código:** `npx supabase db push`. **Cómo regresar:** una migración nueva con
+  `alter table ... drop constraint` de cada una.
+- **APK:** el correo y la contraseña de la cuenta de pruebas (`EXPO_PUBLIC_DEV_*`) quedaban dentro del APK release;
+  ya no. El backup de Android quedó desactivado (`allowBackup: false`) porque copiaba la sesión fuera del celular.
+  Cualquier APK compilado antes de este cambio trae esa contraseña: no compartirlo y cambiar la contraseña de la cuenta.
+- **Pedidos:** una carga vieja ya no pisa a una nueva; si el servidor rechaza un cambio de estado o una calificación se
+  deshace en pantalla; los pedidos guardados en el celular ya no se suben dos veces; "Volver a pedir" usa el precio de
+  hoy; el checkout vuelve a exigir el pedido mínimo.
+- **Sesión:** si la sesión se pierde fuera del login la app vuelve al login, y el carrito se vacía al cambiar de cuenta.
+- **Compras del plan:** "Pedir de X" ya no duplica cantidades ni mezcla tiendas, y no pide lo que ya se marcó como comprado.
+- **Ubicación:** "Usar mi ubicación actual" detecta el distrito con el GPS (antes llevaba a un mapa de mentira que no
+  guardaba nada) y la lista muestra los 30 distritos.
+- **Accesibilidad:** los botones de solo ícono y `BrandButton` se anuncian bien con TalkBack/VoiceOver.
+
+---
+
 ## 20 oct 2026
 
 ### Correos de registro y recuperación con diseño

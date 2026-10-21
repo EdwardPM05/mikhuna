@@ -28,20 +28,31 @@ Esto evita que un modelo alucine un precio y engañe al usuario sobre su presupu
 
 ## Probarla manualmente
 
+La función exige la sesión de un usuario real (ver más abajo), así que hace falta su `access_token`. El más fácil de
+sacar es el de la app web en modo desarrollo: en la consola del navegador,
+`JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.includes("auth-token")))).access_token`.
+
 ```bash
 curl -s -X POST "https://lvkweyiwzkqtojlylinc.supabase.co/functions/v1/generar-plan" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
   -d '{"dias":["Lunes","Martes"],"antojos":["criolla"],"restricciones":[],"presupuesto":150,"personas":2}'
 ```
+
+Sin token responde `401`; con valores que la app no manda (un día mal escrito, un antojo inventado, más de 12
+personas) responde `400`.
 
 ## Limitaciones conocidas
 
 - La capa gratuita de Gemini (Google AI Studio) tiene límite de requests por minuto y por día — no hay caché todavía, así que cada llamada gasta cuota. Antes de conectarla al wizard en producción conviene cachear el plan generado (por ejemplo, por hash de las respuestas del wizard) para no volver a pedirle a Gemini el mismo plan dos veces.
-- La función está desplegada con `--no-verify-jwt` (no exige sesión de usuario) para simplificar las pruebas iniciales. No devuelve ni modifica datos sensibles, pero antes de dejarla en uso real conviene evaluar si debe exigir JWT como el resto de la API.
+- **Quién puede llamarla:** se despliega con `--no-verify-jwt`, pero la propia función pide un usuario con sesión (`auth.getUser()` con el header `Authorization`) y responde `401` si no lo hay. El anon key solo no basta: va dentro del APK y cualquiera podría gastarse la cuota de Gemini con él.
+- **Entrada cerrada:** solo acepta los días, antojos y restricciones que existen en la app, un presupuesto entre 0 y 10 000 y de 1 a 12 personas; todo lo demás es `400`. Es lo que evita que alguien meta instrucciones en el prompt o listas enormes. Si se agrega un antojo o restricción al catálogo, hay que sumarlo también en `ANTOJOS_VALIDOS` / `RESTRICCIONES_VALIDAS` de la función.
+- **Errores:** el detalle de lo que respondió Gemini se queda en los logs de la función (`npx supabase functions logs generar-plan`); a la app solo le llega un mensaje genérico.
+- **Falta todavía:** un límite de llamadas por usuario (por ejemplo, una tabla `uso_ia` con un máximo por hora). Hoy un usuario con sesión puede llamarla todas las veces que quiera.
 - **Reintentos:** la Edge Function reintenta hasta 3 veces con espera creciente (0.8 s, 1.6 s, 3.2 s) cuando Gemini responde `503` (sobrecargado) o `429` (cuota); son errores transitorios frecuentes en la capa gratis, sobre todo en horas pico. Si se agotan los reintentos responde `502` con un mensaje claro.
 - **Sin fallback automático todavía:** si Gemini sigue fallando, `generarPlanConIA()` lanza un error — quien lo use debe decidir si cae de vuelta a `generarPlanSemana()`. Una cadena de respaldo (otro proveedor gratuito como Groq u OpenRouter) es una mejora posible, pero requiere otra API key.
 - **Sin caché:** cada llamada gasta cuota; conviene cachear por hash de las respuestas del wizard antes de conectarlo.
 
 ## Página de prueba
 
-Para probar la función con opciones reales (días, antojos, restricciones, presupuesto) sin escribir `curl`, se puede servir una página HTML estática que le pegue directo a la Edge Function (el CORS ya está abierto). No está en el repo porque solo es una herramienta local de pruebas.
+Para probar la función con opciones reales (días, antojos, restricciones, presupuesto) sin escribir `curl`, se puede servir una página HTML estática que le pegue directo a la Edge Function (el CORS ya está abierto; la página tiene que mandar el `access_token` de un usuario). No está en el repo porque solo es una herramienta local de pruebas.
