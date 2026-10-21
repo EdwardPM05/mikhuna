@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 type AuthContextValue = {
   session: Session | null;
   loading: boolean;
+  // nombre que el usuario dio al registrarse; si no lo tiene, la parte del correo antes de la @
+  nombre: string;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, nombre: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -65,11 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  const nombre = nombreVisible(session);
+
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, loading, nombre, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+function nombreVisible(session: Session | null) {
+  const delRegistro = session?.user.user_metadata?.nombre;
+  if (typeof delRegistro === "string" && delRegistro.trim() !== "") return delRegistro.trim();
+  return session?.user.email?.split("@")[0] ?? "";
 }
 
 export function useAuth() {

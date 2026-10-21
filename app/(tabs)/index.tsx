@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanWizard } from "../../context/PlanWizardContext";
+import { useAuth } from "../../context/AuthContext";
 import { ANTOJOS, INGREDIENTES, generarPlanSemana } from "../../lib/catalogo";
 import { BrandButton } from "../../components/BrandButton";
 
@@ -53,6 +54,8 @@ function rangoSemana() {
 
 export default function PlanScreen() {
   const { data } = usePlanWizard();
+  const { nombre } = useAuth();
+  const primerNombre = nombre.split(" ")[0];
 
   if (data.dias.length === 0) {
     return (
@@ -90,11 +93,20 @@ export default function PlanScreen() {
           Cabecera "Hola" calibrada a pixel por Edward: los translateY de
           nombre/subtítulo/pills son ajustes finos manuales, no accidentes.
           La mascota (más abajo) usa position absolute con top fijo, así que
-          si cambia el tamaño de letra de "Hola, Edward" hay que reajustar su
-          `top` a mano para que la mano siga apoyada en el borde de la tarjeta.
+          si cambia el tamaño de letra del saludo hay que reajustar su `top` a
+          mano para que la mano siga apoyada en el borde de la tarjeta. El
+          nombre se encoge (adjustsFontSizeToFit) en vez de partirse en dos
+          líneas, así la altura de la cabecera no cambia con nombres largos.
         */}
         <View className="mb-6" style={{ position: "relative" }}>
-          <Text className="font-display text-5xl text-ink pr-20" style={{ fontSize: 42, transform: [{ translateY: 17 }] }}>Hola, Edward</Text>
+          <Text
+            className="font-display text-5xl text-ink pr-20"
+            style={{ fontSize: 42, transform: [{ translateY: 17 }] }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {primerNombre ? `Hola, ${primerNombre}` : "Hola"}
+          </Text>
           <Text
             className="font-body text-sm text-ink/50"
             style={{ marginBottom: 26, transform: [{ translateY: 18 }] }}
