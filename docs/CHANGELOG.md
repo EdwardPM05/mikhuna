@@ -20,6 +20,13 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Registro confirmado con código
+- **Qué:** después de registrarse se escribe el código del correo y se entra directo (antes llegaba un enlace que no
+  abría la app y la cuenta quedaba sin confirmar). El login ofrece "Confirmar con un código" a cuentas sin confirmar.
+  También se corrigió la traducción de errores: un código vencido o mal escrito mostraba "Ese correo no parece válido".
+- **Fuera del código:** la plantilla *Confirm signup* de Supabase tiene que incluir `{{ .Token }}`.
+- **Cómo regresar:** `git revert` de los commits.
+
 ### Olvidé mi contraseña
 - **Qué:** enlace "¿Olvidaste tu contraseña?" en el login y pantalla nueva `app/(auth)/recuperar.tsx`: correo → código
   por correo → contraseña nueva → entra a la app. Funciones `enviarCodigoRecuperacion` y `restablecerContrasena` en

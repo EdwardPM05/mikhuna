@@ -4,6 +4,10 @@
 
 1. `app/index.tsx` revisa si hay sesión de Supabase (`AuthContext`).
    - Sin sesión → `(auth)/login` (o `(auth)/registro` desde "Regístrate").
+   - **Registro** → al crear la cuenta pide el código que llega al correo (`verifyOtp` tipo `email`) y entra directo
+     a la app; se puede reenviar cada 60 s. Si alguien intenta entrar con una cuenta sin confirmar, el login le ofrece
+     "Confirmar con un código", que abre ese mismo paso. Requiere que la plantilla **Confirm signup** de Supabase
+     muestre `{{ .Token }}` (misma idea que la de recuperación, más abajo).
    - Con sesión y distrito ya elegido → `(tabs)` directo.
    - Con sesión y sin distrito (primera vez) → `(onboarding)/ubicacion`.
    - **"¿Olvidaste tu contraseña?"** en el login → `(auth)/recuperar`: el usuario escribe su correo, Supabase le manda un
