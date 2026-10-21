@@ -11,16 +11,16 @@ eso falla, con las reglas en el mismo celular. El plan queda guardado en `planSe
 Wizard ("¿Quién eres?", días, presupuesto, antojos, restricciones, electrodomésticos)
    │
    ▼  lib/ia.ts → armarPlan()
-App ──supabase.functions.invoke("generar-plan")──▶ Edge Function (Deno)
-                                                     1. valida el perfil (solo valores conocidos)
-                                                     2. _shared/plan.ts: filtra restricciones y cocina,
-                                                        ordena por perfil → hasta 30 candidatas
-                                                     3. Gemini elige 1 id por día + "por qué te va"
-                                                        (el esquema solo admite ids de las candidatas)
-                                                     4. completa lo que falte con las reglas
-   ◀────────────── { platos: [{ dia, recetaId, razon }], fuente: "ia" | "reglas" }
+App ──invoke("generar-plan")──▶ Edge Function (Deno)
+                                  1. valida el perfil (solo valores conocidos)
+                                  2. _shared/plan.ts: filtra restricciones y cocina,
+                                     ordena por perfil → hasta 20 candidatas
+                                  3. Gemini elige 1 id por día + "por qué te va"
+                                     (3 variantes a la vez, gana la primera; máx. 18 s)
+                                  4. completa lo que falte con las reglas
+   ◀── { platos: [{ dia, recetaId, razon }], fuente: "ia" | "reglas" }
    │
-   └─ si no responde en 15 s, falla o devuelve algo que no calza: armarPlanLocal() en el celular
+   └─ si no responde en 22 s, falla o no calza: armarPlanLocal() en el celular
 ```
 
 - **La IA no inventa recetas ni precios.** Solo elige entre las recetas de
