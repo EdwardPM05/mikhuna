@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cambia tu contraseña de Mikhuna</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito+Sans:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #fdf3e7">
+    <!-- Texto de vista previa en la bandeja de entrada -->
+    <div style="display: none; max-height: 0; overflow: hidden">Tu código para cambiar la contraseña es {{ .Token }}</div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #fdf3e7">
+      <tr>
+        <td align="center" style="padding: 32px 16px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px">
+            <!-- Logo -->
+            <tr>
+              <td align="center" style="padding-bottom: 20px">
+                <img
+                  src="https://raw.githubusercontent.com/EdwardPM05/mikhuna/main/src/assets/images/logo_wordmark.png"
+                  width="170"
+                  alt="Mikhuna"
+                  style="display: block; border: 0"
+                />
+              </td>
+            </tr>
+
+            <!-- Tarjeta -->
+            <tr>
+              <td
+                style="
+                  background-color: #ffffff;
+                  border-radius: 28px;
+                  padding: 32px 28px;
+                  box-shadow: 0 6px 16px rgba(36, 31, 33, 0.12);
+                "
+              >
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center">
+                      <img
+                        src="https://raw.githubusercontent.com/EdwardPM05/mikhuna/main/src/assets/mascots/papi_papa_checklist.png"
+                        width="120"
+                        alt="Papi Papa con su lista"
+                        style="display: block; border: 0"
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      align="center"
+                      style="
+                        font-family: 'Baloo 2', 'Arial Rounded MT Bold', Arial, sans-serif;
+                        font-size: 28px;
+                        font-weight: 800;
+                        color: #241f21;
+                        padding-top: 8px;
+                      "
+                    >
+                      ¿Se te olvidó? Pasa 🔑
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      align="center"
+                      style="
+                        font-family: 'Nunito Sans', Arial, sans-serif;
+                        font-size: 16px;
+                        line-height: 24px;
+                        color: rgba(36, 31, 33, 0.7);
+                        padding: 8px 8px 24px;
+                      "
+                    >
+                      {{ if .Data.nombre }}{{ .Data.nombre }}, escribe{{ else }}Escribe{{ end }} este código en la
+                      app junto con tu nueva contraseña y vuelves a entrar al toque.
+                    </td>
+                  </tr>
+
+                  <!-- Código -->
+                  <tr>
+                    <td align="center">
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td
+                            align="center"
+                            style="
+                              background-color: #ffc993;
+                              border: 3px dashed #e5131b;
+                              border-radius: 20px;
+                              padding: 16px 18px 16px 28px;
+                              font-family: 'Baloo 2', 'Courier New', monospace;
+                              font-size: 40px;
+                              font-weight: 800;
+                              letter-spacing: 10px;
+                              color: #7a1220;
+                            "
+                          >
+                            {{ .Token }}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      align="center"
+                      style="
+                        font-family: 'Nunito Sans', Arial, sans-serif;
+                        font-size: 13px;
+                        line-height: 20px;
+                        color: rgba(36, 31, 33, 0.5);
+                        padding-top: 20px;
+                      "
+                    >
+                      ⏱️ El código vence en 1 hora.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Pie -->
+            <tr>
+              <td
+                align="center"
+                style="
+                  font-family: 'Nunito Sans', Arial, sans-serif;
+                  font-size: 12px;
+                  line-height: 18px;
+                  color: rgba(36, 31, 33, 0.45);
+                  padding: 24px 16px 0;
+                "
+              >
+                ¿No pediste cambiar tu contraseña? Ignora este correo: tu contraseña actual sigue igual.<br />
+                Hecho en Perú con harto ají 🌶️
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
