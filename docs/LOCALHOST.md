@@ -11,18 +11,26 @@
 
 ## 0. Lo más importante: hay una sola base de datos y puede estar pausada
 
-Localhost solo levanta la **interfaz**. El inicio de sesión, el registro y la función de IA viven en **un único proyecto
-de Supabase** (ref `lpnujzuatgnekirfdxru`, región `ca-central-1`). No existe una copia de pruebas: todo lo que se guarde
-desde localhost queda en ese proyecto.
+Localhost solo levanta la **interfaz**. El inicio de sesión, el registro, los planes, los pedidos y la función de IA
+viven en **un único proyecto de Supabase**, *mikhuna* (ref `lvkweyiwzkqtojlylinc`, región `sa-east-1`, São Paulo). No
+existe una copia de pruebas: todo lo que se guarde desde localhost queda en ese proyecto.
+
+Las tablas (`planes`, `pedidos`) se crean con las migraciones de `supabase/migrations/`. En un proyecto nuevo, o después
+de agregar una migración:
+
+```bash
+npx supabase link --project-ref lvkweyiwzkqtojlylinc   # pide la contraseña de la base de datos
+npx supabase db push                                    # aplica las migraciones que falten
+```
 
 **El plan gratuito de Supabase pausa los proyectos por inactividad.** Un proyecto pausado se reconoce así:
 
 | Señal | Qué se ve |
 |---|---|
 | App | Gira unos segundos al abrir y cae al login; registrar o ingresar falla con "Failed to fetch" |
-| Consola del navegador | `net::ERR_NAME_NOT_RESOLVED` hacia `lpnujzuatgnekirfdxru.supabase.co` |
+| Consola del navegador | `net::ERR_NAME_NOT_RESOLVED` hacia `lvkweyiwzkqtojlylinc.supabase.co` |
 | Terminal | `npx supabase projects list` muestra `"status":"INACTIVE"` |
-| DNS | `nslookup lpnujzuatgnekirfdxru.supabase.co` responde "Non-existent domain" |
+| DNS | `nslookup lvkweyiwzkqtojlylinc.supabase.co` responde "Non-existent domain" |
 
 **Solución:** entrar al dashboard de Supabase, abrir el proyecto *Mikhuna* y pulsar **Restore project**. Tarda unos
 minutos; cuando `projects list` muestre `ACTIVE`, recargar la app. Mientras esté pausado, la función `generar-plan`

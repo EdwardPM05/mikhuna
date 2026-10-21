@@ -10,14 +10,26 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 - **Edge Function (`generar-plan`):** vive en el servidor, no en la app. Después de revertir el archivo hay que volver a
   desplegarla: `npx supabase functions deploy generar-plan --no-verify-jwt`. Para quitarla del servidor:
   `npx supabase functions delete generar-plan`. Su clave es un secreto del proyecto (`npx supabase secrets set/unset GEMINI_API_KEY`).
-- **Base de datos:** el repo **no tiene migraciones SQL** (en `supabase/` solo está la función). Hay **un único proyecto de
-  Supabase** (ref `lpnujzuatgnekirfdxru`, creado el 15 sep 2026) que sirve a desarrollo y a producción: no hay copia de pruebas.
+- **Base de datos:** las tablas se crean con las migraciones de `supabase/migrations/` (`npx supabase db push`). Para
+  deshacer una, se escribe otra migración que la revierta; no se edita una que ya se aplicó. Hay **un único proyecto de
+  Supabase**, *mikhuna* (ref `lvkweyiwzkqtojlylinc`, `sa-east-1`), que sirve a desarrollo y a producción: no hay copia de pruebas.
 - **Dataset:** `data/` está en `.gitignore` y se regenera. Tras revertir un commit de `scripts/dataset/`, volver a correr
   `python scripts/dataset/build_recipes.py` (y `build_viewer.py` si se usa el visor).
 
 ---
 
 ## 20 oct 2026
+
+### Planes y pedidos en Supabase
+- **Qué:** nueva migración `supabase/migrations/20261021020000_planes_y_pedidos.sql` con las tablas `planes` y `pedidos`
+  y RLS (cada usuario solo ve y cambia lo suyo; de un pedido solo se pueden cambiar estado, calificación y comentario).
+  `OrdersContext` y `PlanWizardContext` ahora leen y escriben ahí. Lo que hubiera en AsyncStorage se sube una vez.
+- **Hay que aplicarla:** `npx supabase db push` (con el proyecto vinculado). Hasta entonces la pestaña Pedidos muestra
+  "Sin conexión", confirmar un pedido falla con aviso y el plan sigue guardándose solo en el celular.
+- **Docs:** `LOCALHOST.md`, `IA.md` y este archivo apuntaban al proyecto viejo `lpnujzuatgnekirfdxru`, que ya no existe;
+  ahora apuntan a *mikhuna* (`lvkweyiwzkqtojlylinc`).
+- **Cómo regresar:** `git revert` de los commits; para quitar las tablas, una migración nueva que las elimine
+  (borra los datos).
 
 ### Ronda de mejoras de UI y flujo (11 commits, `0e3be8b`…`aeddfbc`)
 Todo lo de abajo se comprobó con `npx tsc --noEmit` y recorriendo la app en web (Chrome, 390×844): login, registro,
