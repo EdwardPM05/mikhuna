@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../../components/SafeAreaView";
 import { router, useLocalSearchParams } from "expo-router";
@@ -13,6 +13,11 @@ export default function NegocioScreen() {
   const productos = useMemo(() => PRODUCTOS.filter((p) => p.negocioId === id), [id]);
   const { agregar, quitar, cantidadDe, cantidadTotal, total, negocioId } = useCart();
   const [aviso, setAviso] = useState<string | null>(null);
+  const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (timerAviso.current) clearTimeout(timerAviso.current);
+  }, []);
 
   if (!negocio) {
     return (
@@ -26,14 +31,22 @@ export default function NegocioScreen() {
     const { reemplazado } = agregar(negocio!.id, producto);
     if (reemplazado) {
       setAviso("Tu carrito era de otro negocio — se vació y empezó de nuevo con este.");
-      setTimeout(() => setAviso(null), 3500);
+      // Un aviso nuevo reinicia la cuenta; al salir de la pantalla se cancela.
+      if (timerAviso.current) clearTimeout(timerAviso.current);
+      timerAviso.current = setTimeout(() => setAviso(null), 3500);
     }
   }
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-4">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <View
@@ -79,6 +92,8 @@ export default function NegocioScreen() {
               {cantidad === 0 ? (
                 <Pressable
                   onPress={() => handleAgregar(producto)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Agregar ${producto.nombre}`}
                   className="bg-chili rounded-full w-9 h-9 items-center justify-center active:opacity-80"
                 >
                   <Ionicons name="add" size={20} color="#FDF3E7" />
@@ -87,6 +102,8 @@ export default function NegocioScreen() {
                 <View className="flex-row items-center">
                   <Pressable
                     onPress={() => quitar(producto.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Quitar uno de ${producto.nombre}`}
                     className="bg-ink/10 rounded-full w-8 h-8 items-center justify-center active:opacity-70"
                   >
                     <Ionicons name="remove" size={18} color="#241F21" />
@@ -94,6 +111,8 @@ export default function NegocioScreen() {
                   <Text className="font-body-extrabold text-ink w-7 text-center">{cantidad}</Text>
                   <Pressable
                     onPress={() => handleAgregar(producto)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Agregar otro ${producto.nombre}`}
                     className="bg-chili rounded-full w-8 h-8 items-center justify-center active:opacity-80"
                   >
                     <Ionicons name="add" size={18} color="#FDF3E7" />
