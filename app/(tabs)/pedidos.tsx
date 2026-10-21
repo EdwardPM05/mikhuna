@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BrandButton } from "../../components/BrandButton";
-import { NEGOCIOS } from "../../lib/catalogo";
+import { INGREDIENTES, NEGOCIOS, PRODUCTOS } from "../../lib/catalogo";
 import { useCart } from "../../context/CartContext";
 import { ORDEN_ESTADOS, useOrders, type EstadoPedido, type Pedido } from "../../context/OrdersContext";
 
@@ -142,17 +142,25 @@ function TarjetaAnterior({ pedido, onRepetir }: { pedido: Pedido; onRepetir: () 
 
 export default function PedidosScreen() {
   const { pedidos, cargando, errorCarga, recargar } = useOrders();
-  const { agregar } = useCart();
+  const { llenarCon } = useCart();
 
   const enCurso = pedidos.filter((p) => p.estado !== "entregado");
   const anteriores = pedidos.filter((p) => p.estado === "entregado");
 
+  // El historial guarda el precio de cuando se pidió; para repetir se usa el
+  // de hoy (producto del negocio o ingrediente del plan). Lo que ese negocio
+  // ya no vende se deja fuera. El carrito queda solo con este pedido, como
+  // si se hubiera vuelto a armar.
   function repetir(pedido: Pedido) {
-    for (const item of pedido.items) {
-      for (let i = 0; i < item.cantidad; i++) {
-        agregar(pedido.negocioId, { id: item.id, nombre: item.nombre, precio: item.precio });
-      }
-    }
+    const vigentes = pedido.items.flatMap((item) => {
+      const producto = PRODUCTOS.find((p) => p.id === item.id && p.negocioId === pedido.negocioId);
+      const oferta = INGREDIENTES.find((i) => i.id === item.id)?.ofertas.find(
+        (o) => o.negocioId === pedido.negocioId
+      );
+      const precio = producto?.precio ?? oferta?.precio;
+      return precio === undefined ? [] : [{ id: item.id, nombre: item.nombre, precio, cantidad: item.cantidad }];
+    });
+    llenarCon(pedido.negocioId, vigentes);
     router.push("/(delivery)/carrito");
   }
 
@@ -207,6 +215,15 @@ export default function PedidosScreen() {
         <Text className="font-body text-sm text-ink/50 mb-5">
           {pedidos.length} {pedidos.length === 1 ? "pedido" : "pedidos"} en total
         </Text>
+
+        {errorCarga ? (
+          <View className="flex-row items-start bg-chili/10 rounded-xl px-3 py-2.5 mb-4">
+            <Ionicons name="cloud-offline-outline" size={16} color="#E5131B" style={{ marginTop: 1 }} />
+            <Text className="font-body-semibold text-xs text-maroon ml-2 flex-1">
+              {errorCarga} Lo que ves puede no estar al día.
+            </Text>
+          </View>
+        ) : null}
 
         {enCurso.length > 0 && (
           <>
