@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { Image } from "expo-image";
-import type { ColorValue } from "react-native";
+import { Platform, type ColorValue } from "react-native";
 import { useOrders } from "../../context/OrdersContext";
 
 const ICONOS = {
@@ -31,8 +31,14 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#E5131B",
         tabBarInactiveTintColor: "#241F21",
-        tabBarStyle: { backgroundColor: "#FFFFFF", borderTopColor: "rgba(36,31,33,0.12)" },
-        tabBarLabelStyle: { fontFamily: "NunitoSans_700Bold", fontSize: 11 },
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "rgba(36,31,33,0.12)",
+          // En web la barra mide 48px y la etiqueta se corta por abajo; en el
+          // celular la altura la calcula la librería con el área segura.
+          ...(Platform.OS === "web" ? { height: 60, paddingTop: 4, paddingBottom: 6 } : null),
+        },
+        tabBarLabelStyle: { fontFamily: "NunitoSans_700Bold", fontSize: 11, lineHeight: 15 },
         tabBarBadgeStyle: {
           backgroundColor: "#E5131B",
           color: "#FDF3E7",
