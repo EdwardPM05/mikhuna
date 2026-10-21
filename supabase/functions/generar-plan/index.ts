@@ -334,8 +334,13 @@ async function pedirPlan(
 }
 
 // La primera variante que dé un plan válido gana. Si ninguna llega a tiempo,
-// el error trae qué le pasó a cada una, para saber qué ajustar.
-async function elegirConGemini(p: PreferenciasPlan, lista: Receta[]): Promise<{ platos: unknown[]; variante: string }> {
+// el error trae qué le pasó a cada una, para saber qué ajustar. Si una gana,
+// `fallos` dice cuáles ya habían fallado antes (las demás se cortan): así se
+// nota una variante rota aunque otra la tape.
+async function elegirConGemini(
+  p: PreferenciasPlan,
+  lista: Receta[],
+): Promise<{ platos: unknown[]; variante: string; fallos: string[] }> {
   const prompt = construirPrompt(p, lista);
   const esquema = esquemaRespuesta(p, lista);
   const permitidos = new Set(lista.map((r) => r.id));
@@ -346,7 +351,7 @@ async function elegirConGemini(p: PreferenciasPlan, lista: Receta[]): Promise<{ 
     return await Promise.any(
       variantes().map((v) =>
         pedirPlan(v, prompt, esquema, permitidos, control.signal).then(
-          (platos) => ({ platos, variante: `${v.nombre}:${v.modelo}` }),
+          (platos) => ({ platos, variante: `${v.nombre}:${v.modelo}`, fallos: [...fallos].sort() }),
           (err) => {
             const motivo = err instanceof FalloGemini ? err.message : control.signal.aborted ? "tardo" : "red";
             fallos.push(`${v.nombre}:${motivo}`);
@@ -413,8 +418,14 @@ Deno.serve(async (req: Request) => {
 
   const inicio = Date.now();
   try {
-    const { platos, variante } = await elegirConGemini(p, lista);
-    return json({ platos: conCopias(completarPlan(p, lista, platos), lista), fuente: "ia", variante, ms: Date.now() - inicio });
+    const { platos, variante, fallos } = await elegirConGemini(p, lista);
+    return json({
+      platos: conCopias(completarPlan(p, lista, platos), lista),
+      fuente: "ia",
+      variante,
+      ...(fallos.length ? { fallos } : {}),
+      ms: Date.now() - inicio,
+    });
   } catch (err) {
     // El detalle de cada fallo queda en los logs; a la app solo le llega un
     // resumen corto (p. ej. "esquema:tardo,libre:429,rapido:404").
