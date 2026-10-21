@@ -5,7 +5,8 @@ existe se reemplaza, así que se puede correr de nuevo después de cambiar las r
 
 Uso (PowerShell):
   $env:SUPABASE_URL = "https://<proyecto>.supabase.co"
-  $env:SUPABASE_SERVICE_ROLE_KEY = "..."      # Dashboard > Project Settings > API. Nunca va al repo ni al APK.
+  $env:SUPABASE_SERVICE_ROLE_KEY = "..."      # Dashboard > Project Settings > API Keys: la "secret" (sb_secret_...)
+                                              # o la "service_role" (eyJ...). Nunca va al repo ni al APK.
   python scripts/dataset/subir_recetas.py [--archivo data/recetas_app.jsonl]
 """
 import argparse
@@ -43,7 +44,8 @@ def subir(url: str, clave: str, filas: list[dict]) -> None:
         method="POST",
         headers={
             "apikey": clave,
-            "Authorization": f"Bearer {clave}",
+            # Las claves nuevas (sb_secret_...) van solo en apikey; las viejas (JWT) también como Bearer.
+            **({"Authorization": f"Bearer {clave}"} if clave.startswith("eyJ") else {}),
             "Content-Type": "application/json",
             "Prefer": "resolution=merge-duplicates,return=minimal",
         },
