@@ -27,10 +27,10 @@
      Configuración con Gmail:
      1. Activar la verificación en 2 pasos de la cuenta de Google y crear una contraseña de aplicación en
         https://myaccount.google.com/apppasswords.
-     2. Supabase → Authentication → Emails → SMTP Settings → *Enable custom SMTP*: host `smtp.gmail.com`, puerto
-        `465`, usuario y remitente = el Gmail, contraseña = la de aplicación (16 letras, sin espacios), nombre
-        `Mikhuna`.
-     3. Correr `scripts/supabase/aplicar-plantillas-correo.ps1`.
+     2. Poner en `.env.local` `SMTP_GMAIL_USER=...@gmail.com` y `SMTP_GMAIL_APP_PASSWORD=...` (la de aplicación).
+     3. Correr `scripts/supabase/aplicar-plantillas-correo.ps1`: si el proyecto no tiene SMTP, lo configura con esos
+        datos (`smtp.gmail.com`, puerto `465`, remitente "Mikhuna") y sube las plantillas en el mismo paso.
+        También se puede configurar a mano en Authentication → Emails → SMTP Settings.
 
      Gmail permite unos 500 envíos al día; Supabase además limita los correos por hora (Authentication → Rate Limits).
 2. **`(onboarding)/ubicacion`** — el usuario elige su distrito (o usa su ubicación actual), para saber qué negocios mostrarle cerca.

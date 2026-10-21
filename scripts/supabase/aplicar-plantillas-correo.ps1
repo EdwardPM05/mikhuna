@@ -1,12 +1,16 @@
 ﻿# Sube a Supabase Auth las plantillas de correo de supabase/templates/ (registro y
 # recuperación de contraseña), con sus asuntos. Usa el token que guarda
 # `npx supabase login` en el Administrador de credenciales de Windows; no lo imprime.
-# Solo cambia esos cuatro campos de la configuración de Auth.
+# Solo cambia esos cuatro campos de la configuración de Auth; si el proyecto no
+# tiene SMTP y .env.local trae SMTP_GMAIL_USER y SMTP_GMAIL_APP_PASSWORD, también
+# configura el SMTP con Gmail.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/supabase/aplicar-plantillas-correo.ps1
 #
 param([string]$Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")))
 $ErrorActionPreference = "Stop"
+# Para que las tildes se vean bien en la terminal.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Lee el token que guardó el CLI de Supabase en el Administrador de credenciales (no se imprime).
 Add-Type -TypeDefinition @"
@@ -45,12 +49,12 @@ if ($token.StartsWith("go-keyring-base64:")) {
 $confirmacion = [System.IO.File]::ReadAllText((Join-Path $Repo "supabase\templates\confirmar-registro.html"), [System.Text.Encoding]::UTF8)
 $recuperacion = [System.IO.File]::ReadAllText((Join-Path $Repo "supabase\templates\recuperar-contrasena.html"), [System.Text.Encoding]::UTF8)
 
-$cuerpo = @{
+$campos = @{
   mailer_subjects_confirmation          = "Tu código para entrar a Mikhuna 🥔"
   mailer_templates_confirmation_content = $confirmacion
   mailer_subjects_recovery              = "Tu código para cambiar la contraseña 🔑"
   mailer_templates_recovery_content     = $recuperacion
-} | ConvertTo-Json -Depth 3
+}
 
 $url = "https://api.supabase.com/v1/projects/lvkweyiwzkqtojlylinc/config/auth"
 $headers = @{ Authorization = "Bearer $token" }
@@ -63,11 +67,39 @@ $actual = Invoke-RestMethod -Method Get -Uri $url -Headers $headers
 "SMTP usuario:   " + $(if ($actual.smtp_user) { $actual.smtp_user } else { "(vacío)" })
 "Remitente:      " + $(if ($actual.smtp_admin_email) { $actual.smtp_admin_email } else { "(vacío)" })
 "Contraseña:     " + $(if ($actual.smtp_pass) { "configurada" } else { "(vacía)" })
-if (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
-  "El proyecto mikhuna (lvkweyiwzkqtojlylinc) no tiene SMTP propio guardado."
-  "Configúralo en Authentication -> Emails -> SMTP Settings de ESE proyecto y vuelve a correr el script."
-  exit 1
+# Lee SMTP_GMAIL_USER y SMTP_GMAIL_APP_PASSWORD de .env.local (no se sube a git).
+function Leer-EnvLocal([string]$nombre) {
+  $ruta = Join-Path $Repo ".env.local"
+  if (-not (Test-Path $ruta)) { return $null }
+  foreach ($linea in [System.IO.File]::ReadAllLines($ruta)) {
+    if ($linea -match "^\s*$nombre\s*=\s*(.*)\s*$") { return $Matches[1].Trim('"', "'", ' ') }
+  }
+  return $null
 }
+
+$smtp = @{}
+if (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
+  $gmail = Leer-EnvLocal "SMTP_GMAIL_USER"
+  $clave = Leer-EnvLocal "SMTP_GMAIL_APP_PASSWORD"
+  if (-not $gmail -or -not $clave) {
+    "El proyecto mikhuna (lvkweyiwzkqtojlylinc) no tiene SMTP propio guardado."
+    "Opción A: configúralo en Authentication -> Emails -> SMTP Settings de ese proyecto."
+    "Opción B: agrega a .env.local SMTP_GMAIL_USER=tu@gmail.com y SMTP_GMAIL_APP_PASSWORD=la-clave-de-16-letras"
+    "          y vuelve a correr este script: configura el SMTP con Gmail y sube las plantillas."
+    exit 1
+  }
+  "Configurando SMTP con Gmail ($gmail)..."
+  $smtp = @{
+    smtp_host        = "smtp.gmail.com"
+    smtp_port        = "465"
+    smtp_user        = $gmail
+    smtp_pass        = ($clave -replace "\s", "")
+    smtp_admin_email = $gmail
+    smtp_sender_name = "Mikhuna"
+  }
+}
+foreach ($k in $smtp.Keys) { $campos[$k] = $smtp[$k] }
+$cuerpo = $campos | ConvertTo-Json -Depth 3
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($cuerpo)
 $r = Invoke-RestMethod -Method Patch -Uri $url -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes
 
