@@ -36,6 +36,8 @@ Este archivo es el que se reemplazaría por llamadas reales a Supabase / un mode
 
 - **`WizardScreen`** — wrapper de las 7 pantallas del wizard de Flujo A: header con barra de progreso + mascota caminando sincronizada al paso actual, y contenido centrado verticalmente.
 - **`BrandButton`** — botón primario/outline reutilizado en toda la app.
+- **`SafeAreaView`** — envoltorio de `react-native-safe-area-context`. En el celular es el original; en web (`SafeAreaView.web.tsx`) es un `View` plano para que las clases de Tailwind (`px-6`) no se pierdan. Todas las pantallas lo importan de acá.
+- **`PhoneFrame`** (en `app/_layout.tsx`) — solo en web: limita la app a 430 px de ancho y la centra. Ver [LOCALHOST.md](LOCALHOST.md).
 - **`KitchenScene`** — la escena interactiva de "¿qué tienes en tu cocina?": fondo de cocina + electrodomésticos posicionados a mano (por nivel: básica/promedio/avanzada), tocables para marcar cuáles tiene el usuario.
 
 ## Multi-store: por qué existe `preferenciasCompra`

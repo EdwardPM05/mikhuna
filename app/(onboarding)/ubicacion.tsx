@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "../../components/SafeAreaView";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import { Image } from "expo-image";

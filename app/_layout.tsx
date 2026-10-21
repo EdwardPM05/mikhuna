@@ -8,13 +8,27 @@ import {
 } from "@expo-google-fonts/nunito-sans";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
+import { Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "../context/AuthContext";
 import { PlanWizardProvider } from "../context/PlanWizardContext";
 import { CartProvider } from "../context/CartContext";
+import { colors } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// En web limita la app al ancho de un celular y la centra; en el celular no hace nada.
+function PhoneFrame({ children }: { children: ReactNode }) {
+  if (Platform.OS !== "web") return <>{children}</>;
+  return (
+    <View style={{ flex: 1, alignItems: "center", backgroundColor: colors.ink }}>
+      <View style={{ flex: 1, width: "100%", maxWidth: 430, overflow: "hidden", backgroundColor: colors.cream }}>
+        {children}
+      </View>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -42,13 +56,15 @@ export default function RootLayout() {
       <PlanWizardProvider>
         <CartProvider>
           <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(plan)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(delivery)" />
-          </Stack>
+          <PhoneFrame>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(plan)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(delivery)" />
+            </Stack>
+          </PhoneFrame>
         </CartProvider>
       </PlanWizardProvider>
     </AuthProvider>

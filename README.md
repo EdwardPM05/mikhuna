@@ -27,6 +27,8 @@ EXPO_PUBLIC_SUPABASE_URL=...
 EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
+Para verlo en el navegador con tamaño de celular, y qué hacer si el proyecto de Supabase está pausado, ver [docs/LOCALHOST.md](docs/LOCALHOST.md).
+
 Para generar el APK de Android, ver [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md).
 
 ## Documentación
@@ -37,6 +39,7 @@ Para generar el APK de Android, ver [docs/COMPILACION_APK_ANDROID.md](docs/COMPI
 - [docs/IA.md](docs/IA.md) — generación de planes con Gemini vía Supabase Edge Function.
 - [docs/DATASET.md](docs/DATASET.md) — dataset de recetas: fuentes, limpieza, cantidades normalizadas y tabla de peso por unidad.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — registro de cambios por commit, con lo aprendido en cada uno.
+- [docs/LOCALHOST.md](docs/LOCALHOST.md) — cómo correr la app en web, verla como celular y problemas conocidos.
 - [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md) — cómo generar un APK de prueba localmente.
 
 ## Estructura rápida

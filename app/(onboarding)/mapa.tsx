@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "../../components/SafeAreaView";
 import { router } from "expo-router";
 import { BrandButton } from "../../components/BrandButton";
 

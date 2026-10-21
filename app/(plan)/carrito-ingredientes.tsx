@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "../../components/SafeAreaView";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanWizard } from "../../context/PlanWizardContext";
