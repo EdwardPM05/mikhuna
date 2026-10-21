@@ -124,6 +124,22 @@ Tus respuestas del wizard
 
 Detalle en [docs/IA.md](docs/IA.md) y por qué lo diseñamos así en [docs/ENFOQUE.md](docs/ENFOQUE.md).
 
+## 📲 Descárgala y pruébala
+
+<p>
+  <a href="https://github.com/EdwardPM05/mikhuna/releases/latest/download/mikhuna.apk">
+    <img src="https://img.shields.io/badge/Descargar%20APK-Android-E5131B?style=for-the-badge&logo=android&logoColor=FDF3E7" alt="Descargar APK para Android" />
+  </a>
+</p>
+
+1. Abre el enlace desde tu celular Android y descarga `mikhuna.apk`.
+2. Ábrela. Si Android lo pide, permite "Instalar apps de origen desconocido" para tu navegador.
+3. Crea tu cuenta con tu correo (te llega un código), arma tu semana y prueba las recetas parecidas.
+
+<sub>Necesita Android 7 o superior con procesador de 64 bits (casi cualquier celular de los últimos años).
+Es una versión de prueba firmada para desarrollo: Android puede avisar que no viene de Play Store.
+Todas las versiones están en [Releases](https://github.com/EdwardPM05/mikhuna/releases).</sub>
+
 ## 🚀 Arráncalo
 
 ```bash
@@ -209,13 +225,11 @@ docs/                   documentación
 | [COMPILACION_APK_ANDROID](docs/COMPILACION_APK_ANDROID.md) | Generar el APK |
 | [CHANGELOG](docs/CHANGELOG.md) | Qué cambió en cada commit y cómo regresarlo |
 
-## 🤝 Equipo
+## 🤝 Autores
 
 <table>
   <tr>
-    <td align="center"><img src="src/assets/mascots/papi_papa.png" width="70" alt="" /><br /><b>Hubert Hilario Gomez</b></td>
     <td align="center"><a href="https://github.com/AbnerGA7"><img src="https://github.com/AbnerGA7.png" width="70" alt="" /><br /><b>Abner Gonzales Alcarraz</b></a></td>
-    <td align="center"><img src="src/assets/mascots/cuy_delivery.png" width="64" alt="" /><br /><b>Jesus Pezo Ramirez</b></td>
     <td align="center"><a href="https://github.com/EdwardPM05"><img src="https://github.com/EdwardPM05.png" width="70" alt="" /><br /><b>Edward Pittman Medina</b></a></td>
   </tr>
 </table>
