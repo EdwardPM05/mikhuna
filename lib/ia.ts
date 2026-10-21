@@ -63,6 +63,10 @@ export async function generarPlanConIA(input: {
   if (!data || "error" in data) {
     throw new Error(`Gemini no devolvió un plan válido: ${data && "error" in data ? data.error : "respuesta vacía"}`);
   }
+  // Sin al menos un plato no hay con qué rellenar los días que falten.
+  if (!Array.isArray(data.platos) || data.platos.length === 0) {
+    throw new Error("Gemini no devolvió un plan válido: no propuso ningún plato");
+  }
 
   const diasOrdenados = DIAS.filter((d) => input.dias.includes(d));
 
