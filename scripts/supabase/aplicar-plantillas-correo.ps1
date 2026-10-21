@@ -40,8 +40,10 @@ if ($token.StartsWith("go-keyring-base64:")) {
   $token = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($token.Substring(18)))
 }
 
-$confirmacion = Get-Content -Raw -Encoding UTF8 (Join-Path $Repo "supabase\templates\confirmar-registro.html")
-$recuperacion = Get-Content -Raw -Encoding UTF8 (Join-Path $Repo "supabase\templates\recuperar-contrasena.html")
+# ReadAllText y no Get-Content: en PowerShell 5.1 Get-Content le pega propiedades
+# (PSPath...) al texto y ConvertTo-Json lo manda como objeto en vez de string.
+$confirmacion = [System.IO.File]::ReadAllText((Join-Path $Repo "supabase\templates\confirmar-registro.html"), [System.Text.Encoding]::UTF8)
+$recuperacion = [System.IO.File]::ReadAllText((Join-Path $Repo "supabase\templates\recuperar-contrasena.html"), [System.Text.Encoding]::UTF8)
 
 $cuerpo = @{
   mailer_subjects_confirmation          = "Tu código para entrar a Mikhuna 🥔"
