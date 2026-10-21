@@ -62,7 +62,7 @@ function Fila({
 
 export default function PerfilScreen() {
   const { session, nombre, signOut } = useAuth();
-  const { data, reset } = usePlanWizard();
+  const { data } = usePlanWizard();
   const { vaciar } = useCart();
   const { pedidos } = useOrders();
   // Cerrar sesión pide un segundo toque: Alert con botones no funciona en web.
@@ -81,8 +81,9 @@ export default function PerfilScreen() {
       return;
     }
     setSaliendo(true);
+    // El plan no se borra: queda guardado para cuando vuelva a entrar, y
+    // PlanWizardContext ya lo saca de memoria al cambiar de usuario.
     await signOut();
-    reset();
     vaciar();
     router.replace("/(auth)/login");
   }

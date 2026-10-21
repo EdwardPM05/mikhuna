@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "./AuthContext";
 
 export type ListaPlan =
   | "dias"
@@ -39,6 +41,8 @@ const INICIAL: PlanData = {
 
 type PlanWizardValue = {
   data: PlanData;
+  // true cuando ya se leyó el plan guardado del usuario (o no había ninguno)
+  listo: boolean;
   update: (patch: Partial<PlanData>) => void;
   toggle: (campo: ListaPlan, valor: string, max?: number) => void;
   elegirNegocioParaIngrediente: (ingredienteId: string, negocioId: string) => void;
@@ -48,8 +52,44 @@ type PlanWizardValue = {
 
 const PlanWizardContext = createContext<PlanWizardValue | null>(null);
 
+function claveDe(userId: string) {
+  return `mikhuna:plan:${userId}`;
+}
+
 export function PlanWizardProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
   const [data, setData] = useState<PlanData>(INICIAL);
+  // De quién es el plan que está en `data`: se guarda solo cuando coincide con
+  // el usuario actual, así no se escribe INICIAL encima del plan guardado
+  // antes de terminar de leerlo.
+  const [duenio, setDuenio] = useState<string | null>(null);
+
+  useEffect(() => {
+    setData(INICIAL);
+    setDuenio(null);
+    if (!userId) return;
+    let vigente = true;
+    AsyncStorage.getItem(claveDe(userId))
+      .then((guardado) => {
+        if (!vigente) return;
+        // Se mezcla con INICIAL por si el plan se guardó con una versión que
+        // no tenía algún campo nuevo.
+        if (guardado) setData({ ...INICIAL, ...(JSON.parse(guardado) as Partial<PlanData>) });
+      })
+      .catch(() => {}) // ilegible: se empieza de cero
+      .finally(() => {
+        if (vigente) setDuenio(userId);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || duenio !== userId) return;
+    AsyncStorage.setItem(claveDe(userId), JSON.stringify(data)).catch(() => {});
+  }, [data, duenio, userId]);
 
   function update(patch: Partial<PlanData>) {
     setData((prev) => ({ ...prev, ...patch }));
@@ -88,7 +128,15 @@ export function PlanWizardProvider({ children }: { children: ReactNode }) {
 
   return (
     <PlanWizardContext.Provider
-      value={{ data, update, toggle, elegirNegocioParaIngrediente, quitarDeCarrito, reset }}
+      value={{
+        data,
+        listo: userId === null || duenio === userId,
+        update,
+        toggle,
+        elegirNegocioParaIngrediente,
+        quitarDeCarrito,
+        reset,
+      }}
     >
       {children}
     </PlanWizardContext.Provider>
