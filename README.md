@@ -47,5 +47,13 @@ components/     componentes reutilizables (WizardScreen, BrandButton, KitchenSce
 context/        estado global (Auth, PlanWizard, Cart)
 lib/            catálogo de datos (negocios, ingredientes, recetas), theme, cliente de Supabase
 src/assets/     arte de marca: mascotas, íconos, fondos de cocina, fotos de platos
+supabase/       Edge Function `generar-plan` (Deno + Gemini)
+scripts/        pipeline en Python del dataset de recetas y su visor HTML
+android/        proyecto nativo (bare workflow)
 docs/           documentación del proyecto
 ```
+
+## Contribuidores
+
+- [EdwardPM05](https://github.com/EdwardPM05) — autor
+- Abner Gonzales — contribuidor
