@@ -81,8 +81,13 @@ personas) responde `400`. Cuando responde con las reglas trae `motivo` (`gemini_
 - **Entrada cerrada:** solo acepta días, antojos, restricciones, electrodomésticos, perfil, región, objetivo y nivel que
   existen en la app, un presupuesto entre 0 y 10 000 y de 1 a 12 personas. En el prompt no entra texto libre del
   usuario, así que no se le pueden meter instrucciones.
-- **Costo:** el prompt lleva como mucho 30 recetas resumidas y la respuesta está limitada a 2 048 tokens. Hay hasta 3
-  reintentos ante `503`/`429` (0.8 s, 1.6 s, 3.2 s).
+- **Velocidad:** `gemini-3.8-flash` tardaba más de 18 s en elegir. Por eso la función le pide el plan de tres formas a
+  la vez (con esquema, sin esquema y con el modelo liviano `gemini-flash-lite-latest`, que se cambia con el secreto
+  `GEMINI_MODEL_RAPIDO`) y usa la primera que dé un plan válido; las otras se cancelan. Si ninguna llega en 18 s,
+  responde con las reglas. La respuesta trae `variante` y `ms` (o `motivo` con lo que le pasó a cada una).
+  Medido el 21 oct 2026: ganó el modelo liviano en 4.7 s.
+- **Costo:** cada plan puede gastar hasta 3 llamadas (cada modelo tiene su propia cuota). El prompt lleva como mucho
+  20 recetas resumidas.
 - **Falta todavía:** un límite de llamadas por usuario (por ejemplo, una tabla `uso_ia` con un máximo por hora) y
   cachear el plan por perfil para no pedirle a Gemini dos veces lo mismo.
 
