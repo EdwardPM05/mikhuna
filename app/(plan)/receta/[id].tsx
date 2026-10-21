@@ -4,12 +4,13 @@ import { SafeAreaView } from "../../../components/SafeAreaView";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanWizard } from "../../../context/PlanWizardContext";
-import { ANTOJOS, INGREDIENTES, RECETAS } from "../../../lib/catalogo";
+import { ANTOJOS, INGREDIENTES } from "../../../lib/catalogo";
+import { recetaDelPlan } from "../../../lib/ia";
 
 export default function RecetaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data } = usePlanWizard();
-  const receta = RECETAS.find((r) => r.id === id);
+  const receta = recetaDelPlan(data, id);
 
   if (!receta) {
     return (
@@ -109,7 +110,7 @@ export default function RecetaScreen() {
               const comprado = item.ingredienteId ? data.comprados.includes(item.ingredienteId) : false;
               return (
                 <View
-                  key={item.texto}
+                  key={`${i}-${item.texto}`}
                   className={`flex-row items-center px-4 py-3 ${
                     i < receta.ingredientes.length - 1 ? "border-b border-ink/10" : ""
                   }`}
@@ -142,7 +143,7 @@ export default function RecetaScreen() {
           <Text className="font-display-bold text-base text-ink mb-3">Preparación</Text>
           <View style={{ gap: 12 }}>
             {receta.pasos.map((paso, i) => (
-              <View key={paso} className="flex-row items-start bg-white rounded-2xl border border-ink/10 p-4">
+              <View key={`${i}-${paso}`} className="flex-row items-start bg-white rounded-2xl border border-ink/10 p-4">
                 <View className="w-7 h-7 rounded-full bg-chili items-center justify-center mr-3">
                   <Text className="font-display-bold text-xs text-cream">{i + 1}</Text>
                 </View>

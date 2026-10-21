@@ -46,7 +46,39 @@ export type PreferenciasPlan = {
   nivelCocina: NivelCocina | null;
 };
 
-export type DiaPlan = { dia: string; recetaId: string; razon: string };
+// `receta` va solo cuando la receta es del dataset (tabla public.recetas): la
+// app no la tiene, así que el plan guarda una copia para mostrarla sin internet.
+export type DiaPlan = { dia: string; recetaId: string; razon: string; receta?: Receta };
+
+const DIETAS = ["carne", "pescado", "vegetariana", "vegana"];
+const esTexto = (x: unknown, max: number) => typeof x === "string" && x.length > 0 && x.length <= max;
+const esListaDe = (x: unknown, ok: (v: unknown) => boolean, max: number) =>
+  Array.isArray(x) && x.length <= max && x.every(ok);
+
+// Una receta que llega de afuera (la base o la respuesta de la función) se
+// revisa campo por campo antes de usarla: si algo no cuadra, no entra al plan.
+export function esReceta(x: unknown): x is Receta {
+  if (!x || typeof x !== "object") return false;
+  const r = x as Record<string, unknown>;
+  return (
+    esTexto(r.id, 40) &&
+    esTexto(r.nombre, 120) &&
+    esListaDe(r.etiquetas, (e) => ANTOJOS_IDS.includes(e as string), ANTOJOS_IDS.length) &&
+    (r.etiquetas as string[]).includes(r.antojoId as string) &&
+    (r.cocina === "peruana" || r.cocina === "internacional") &&
+    (r.region === null || REGIONES.includes(r.region as Region)) &&
+    DIETAS.includes(r.dieta as string) &&
+    typeof r.conGluten === "boolean" &&
+    typeof r.conLactosa === "boolean" &&
+    esListaDe(r.requiere, (e) => ELECTRODOMESTICOS_IDS.includes(e as string), ELECTRODOMESTICOS_IDS.length) &&
+    [1, 2, 3].includes(r.dificultad as number) &&
+    esTexto(r.ingredienteIcono, 40) &&
+    Number.isFinite(r.tiempoMin) &&
+    Number.isFinite(r.precio) &&
+    esListaDe(r.ingredientes, (i) => !!i && typeof i === "object" && esTexto((i as { texto?: unknown }).texto, 600), 80) &&
+    esListaDe(r.pasos, (p) => esTexto(p, 600), 30)
+  );
+}
 
 const NOMBRE_ANTOJO: Record<string, string> = {
   criolla: "criolla",
@@ -108,12 +140,13 @@ export function puntaje(r: Receta, p: PreferenciasPlan): number {
   return puntos;
 }
 
-// Las mejores recetas posibles, de más a menos puntaje. El orden es estable
-// (empates por id) para que el mismo perfil dé siempre el mismo plan.
+// Las mejores recetas posibles, de más a menos puntaje. Los empates conservan
+// el orden de `recetas`: con la lista fija de la app el mismo perfil da siempre
+// el mismo plan, y con las que manda la base (ya mezcladas) la semana varía.
 export function candidatas(p: PreferenciasPlan, max = 30, recetas: Receta[] = RECETAS): Receta[] {
   return recetasPosibles(p, recetas)
-    .map((r) => ({ r, puntos: puntaje(r, p) }))
-    .sort((a, b) => b.puntos - a.puntos || a.r.id.localeCompare(b.r.id))
+    .map((r, i) => ({ r, i, puntos: puntaje(r, p) }))
+    .sort((a, b) => b.puntos - a.puntos || a.i - b.i)
     .slice(0, max)
     .map(({ r }) => r);
 }

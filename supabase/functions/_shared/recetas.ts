@@ -1,8 +1,7 @@
-// Recetas con las que se arma el plan semanal. Este archivo lo usan la app
-// (lib/catalogo.ts) y la Edge Function generar-plan, así ambas ven exactamente
-// las mismas recetas: la IA solo puede elegir entre estas, nunca inventa.
-// Cuando el dataset de recetas se cargue a Supabase, esta lista se reemplaza
-// por esa tabla (ver docs/ENFOQUE.md).
+// Recetas fijas de la app. Este archivo lo usan la app (lib/catalogo.ts) y la
+// Edge Function generar-plan. La función las mezcla con las ~18 mil del
+// dataset (tabla public.recetas) y la IA solo puede elegir entre esas; la app
+// usa solo estas cuando arma el plan sin internet (ver docs/DATASET.md).
 //
 // Solo datos y tipos: sin imágenes ni nada de React Native, para que también
 // corra en Deno. La foto de cada plato se agrega en lib/catalogo.ts.
@@ -37,6 +36,7 @@ export type Receta = {
   precio: number;
   ingredientes: IngredienteReceta[];
   pasos: string[];
+  pais?: string | null; // de dónde es, en las recetas del dataset
 };
 
 export const RECETAS: Receta[] = [

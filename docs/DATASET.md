@@ -53,8 +53,47 @@ Valores que la fuente trae mal (p. ej. "400 kilogramos de nueces", "170 Harina" 
 
 `build_viewer.py` genera un visor local (doble clic en `index.html`, sin servidor): busca por título o ingrediente, filtra por país y fuente, y tiene casillas para las marcas de revisión (parseo dudoso, cantidad sospechosa, duración sospechosa, comensales sospechosos, posible duplicado). Muestra cada ingrediente con su texto original, la cantidad normalizada, el peso estimado y las etiquetas heurístico, dudoso, animal y catálogo. Está pensado para recorrer recetas antes de cargarlas a Supabase. Los datos van en fragmentos `datos/` que se cargan con `<script>`, por eso no necesita servidor.
 
+## Cargarlo a la app
+
+El plan no usa los CSV directo: `exportar_recetas.py` los convierte en recetas con la forma de `Receta`
+(`supabase/functions/_shared/recetas.ts`) y `subir_recetas.py` las sube a la tabla `public.recetas`.
+
+```bash
+# Los CSV de Edward van en data/processed/ (recipes.csv e ingredients.csv)
+python scripts/dataset/exportar_recetas.py          # -> data/recetas_app.jsonl (~17 800 recetas)
+npm test                                            # revisa que cada receta tenga la forma que espera la app
+npx supabase db push                                # crea public.recetas y la función recetas_candidatas
+python scripts/dataset/subir_recetas.py             # pide SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en el entorno
+npx supabase functions deploy generar-plan --no-verify-jwt
+```
+
+**Qué se descarta** (~10 mil de 28 850): postres, bebidas y salsas sueltas (por el nombre, el tipo de plato o
+porque llevan algo dulce y nada salado), duplicados, ingredientes incompletos, parseo dudoso y recetas con menos
+de dos pasos.
+
+**Qué se deduce**, porque el dataset no lo trae. Ante la duda se marca lo que más restringe: un falso "apto"
+puede enfermar a alguien; un falso "no apto" solo saca una receta del plan.
+
+| Campo | Cómo |
+|---|---|
+| `dieta` | Carne o pescado si algún ingrediente lo nombra; si no, vegana o vegetariana solo si `apta_*` lo dice; si lleva algo animal sin reconocer, carne. |
+| `conGluten` / `conLactosa` | Palabras en los ingredientes (harina, pasta, sillao…; leche, queso, crema…), con excepciones como harina de maíz o leche de coco. **No es una verificación de alérgenos.** |
+| `requiere` | Palabras en los pasos: horno, licuadora/batidora, microondas, freidora de aire; "cocina" si hay fuego, sartén u olla. |
+| `etiquetas` | Chifa y criolla por el nombre del plato; saludable, proteica (≥ 120 g de proteína por ración), rápida (≤ 30 min) y económica (≤ S/ 12). |
+| `region` | Solo recetas peruanas, por el nombre (ceviche → costa, pachamanca → sierra, juane → selva). |
+| `precio` | Para 2 personas, con un precio por kilo aproximado de mercado de Lima por tipo de ingrediente. Sirve para ordenar por presupuesto, no para cobrar. |
+| `dificultad` / `tiempoMin` | Los de la fuente; si faltan, por número de pasos e ingredientes. |
+
+**Cómo lo usa el plan:** la Edge Function `generar-plan` llama a `recetas_candidatas`, que filtra en la base lo
+que no se negocia y ordena el resto con algo de azar. Esas ~80 se revisan otra vez con las reglas de
+`_shared/plan.ts`, se mezclan con las 20 recetas fijas y las 20 mejores van a Gemini. Las recetas del dataset que
+terminan en el plan se mandan copiadas a la app, que las vuelve a revisar y las guarda en el plan del usuario,
+así la receta se ve aunque no haya internet. Sin internet la app arma el plan solo con las 20 fijas.
+
 ## Pendiente
 
-- Cargar a Supabase (con pgvector para búsqueda) una vez revisado.
-- Categorizar cada receta y ampliar el catálogo de ingredientes (hoy solo 12 % de los ingredientes calza con `INGREDIENTES`).
+- Revisar a mano una muestra de recetas por dieta antes de usarlo en un producto real.
+- Fotos de los platos (hoy solo las recetas fijas tienen).
+- Búsqueda por significado con pgvector ("algo ligero para la noche").
+- Ampliar el catálogo de ingredientes (hoy solo 12 % de los ingredientes calza con `INGREDIENTES`).
 - Ampliar `pesos_por_unidad.csv` con las combinaciones que siguen sin regla.

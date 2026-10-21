@@ -2,6 +2,7 @@
 //   npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { RECETAS } from "../../supabase/functions/_shared/recetas.ts";
 import {
   ANTOJOS_IDS,
@@ -9,6 +10,7 @@ import {
   ELECTRODOMESTICOS_IDS,
   armarPlanLocal,
   candidatas,
+  esReceta,
   respetaRestricciones,
   sePuedePreparar,
   type PreferenciasPlan,
@@ -105,4 +107,48 @@ test("quien quiere ganar masa muscular recibe platos proteicos primero", () => {
 test("el mismo perfil da siempre el mismo plan", () => {
   const p = { ...BASE, antojos: ["saludable"], perfil: "objetivo" as const, objetivo: "sano" as const };
   assert.deepEqual(armarPlanLocal(p), armarPlanLocal(p));
+});
+
+// Las recetas del dataset llegan desde la base o copiadas en el plan: esReceta
+// es lo único que las separa de cualquier JSON.
+test("esReceta acepta las recetas fijas y rechaza las que vienen rotas", () => {
+  for (const r of RECETAS) assert.ok(esReceta(r), `${r.id} debería ser válida`);
+  const buena = { ...recetaDe("lomo-saltado"), id: "ds-1" };
+  assert.ok(esReceta(buena));
+  assert.ok(!esReceta(null));
+  assert.ok(!esReceta({ ...buena, dieta: "omnivora" }));
+  assert.ok(!esReceta({ ...buena, conGluten: "no" }));
+  assert.ok(!esReceta({ ...buena, antojoId: "postre" }));
+  assert.ok(!esReceta({ ...buena, requiere: ["soplete"] }));
+  assert.ok(!esReceta({ ...buena, pasos: "Cocinar" }));
+  assert.ok(!esReceta({ ...buena, ingredientes: [{ texto: "x".repeat(601) }] }));
+});
+
+// Con data/recetas_app.jsonl (lo genera exportar_recetas.py, no está en git)
+// se revisa que todo lo que se va a subir tenga la forma que espera la app.
+const DATASET = "data/recetas_app.jsonl";
+test("las recetas exportadas del dataset tienen la forma de Receta", { skip: !existsSync(DATASET) }, () => {
+  const lineas = readFileSync(DATASET, "utf8").split("\n").filter(Boolean);
+  assert.ok(lineas.length > 10000, `muy pocas recetas: ${lineas.length}`);
+  const ids = new Set<string>();
+  for (const linea of lineas) {
+    const r = JSON.parse(linea);
+    assert.ok(esReceta(r), `${r.id} no tiene la forma de Receta`);
+    assert.ok(r.id.startsWith("ds-") && !ids.has(r.id), `id inválido o repetido: ${r.id}`);
+    ids.add(r.id);
+  }
+});
+
+test("con recetas del dataset en la lista, el plan las usa y sigue respetando las restricciones", () => {
+  const delDataset = RECETAS.map((r, i) => ({ ...r, id: `ds-${i}`, nombre: `${r.nombre} (dataset)` }));
+  for (const restricciones of [[], ["vegano"], ["sin-gluten", "sin-lactosa"], ["pescetariano"]]) {
+    const p = { ...BASE, restricciones };
+    const lista = candidatas(p, 20, [...delDataset, ...RECETAS]);
+    for (const { recetaId } of armarPlanLocal(p, lista)) {
+      const r = lista.find((x) => x.id === recetaId)!;
+      assert.ok(respetaRestricciones(r, restricciones), `${recetaId} no respeta ${restricciones.join(", ")}`);
+    }
+    // A igual puntaje gana la que viene primero: la del dataset.
+    if (lista.length) assert.ok(lista[0].id.startsWith("ds-"));
+  }
 });

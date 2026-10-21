@@ -8,7 +8,10 @@ import type { PlanData } from "../context/PlanWizardContext";
 import {
   DIAS,
   armarPlanLocal,
+  esReceta,
   recetasPosibles,
+  respetaRestricciones,
+  sePuedePreparar,
   type DiaPlan,
   type PreferenciasPlan,
 } from "../supabase/functions/_shared/plan.ts";
@@ -38,8 +41,9 @@ function conLimiteDeTiempo<T>(promesa: Promise<T>, ms: number): Promise<T> {
 }
 
 // La respuesta se revisa de nuevo aquí: cada día pedido, en orden, con una
-// receta que exista y que cumpla las restricciones. Si algo no cuadra, ese
-// plan no se usa.
+// receta que cumpla las restricciones. Puede ser una de las fijas de la app o
+// una del dataset, que llega copiada en `receta` y se revisa entera. Si algo
+// no cuadra, ese plan no se usa.
 function validar(platos: unknown, p: PreferenciasPlan): DiaPlan[] | null {
   if (!Array.isArray(platos)) return null;
   const permitidas = new Set(recetasPosibles(p, RECETAS).map((r) => r.id));
@@ -47,8 +51,20 @@ function validar(platos: unknown, p: PreferenciasPlan): DiaPlan[] | null {
   const plan: DiaPlan[] = [];
   for (const dia of dias) {
     const plato = platos.find((x) => x && typeof x === "object" && x.dia === dia);
-    if (!plato || typeof plato.recetaId !== "string" || !permitidas.has(plato.recetaId)) return null;
-    plan.push({ dia, recetaId: plato.recetaId, razon: typeof plato.razon === "string" ? plato.razon : "" });
+    if (!plato || typeof plato.recetaId !== "string") return null;
+    const razon = typeof plato.razon === "string" ? plato.razon : "";
+    if (permitidas.has(plato.recetaId)) {
+      plan.push({ dia, recetaId: plato.recetaId, razon });
+      continue;
+    }
+    const copia = plato.receta;
+    const sirve =
+      esReceta(copia) &&
+      copia.id === plato.recetaId &&
+      respetaRestricciones(copia, p.restricciones) &&
+      sePuedePreparar(copia, p.electrodomesticos);
+    if (!sirve) return null;
+    plan.push({ dia, recetaId: copia.id, razon, receta: copia });
   }
   return plan;
 }
@@ -90,16 +106,22 @@ export type PlatoDelDia = { dia: string; receta: Receta; razon: string };
 // planSemana se arma con las reglas al vuelo (y respeta sus restricciones).
 export function platosDeLaSemana(data: PlanData): PlatoDelDia[] {
   const plan = data.planFuente === null ? armarPlanLocal(preferenciasDe(data), RECETAS) : data.planSemana;
-  return plan.flatMap(({ dia, recetaId, razon }) => {
-    const receta = RECETAS.find((r) => r.id === recetaId);
+  return plan.flatMap(({ dia, recetaId, razon, receta: copia }) => {
+    const receta = RECETAS.find((r) => r.id === recetaId) ?? copia;
     return receta ? [{ dia, receta, razon }] : [];
   });
 }
 
+// Una receta por id: de las fijas de la app o de las copias que guarda el plan.
+export function recetaDelPlan(data: PlanData, id: string): Receta | undefined {
+  return RECETAS.find((r) => r.id === id) ?? data.planSemana.find((d) => d.recetaId === id)?.receta;
+}
+
 // El plan que se guarda: el de la IA si funcionó, si no el de las reglas.
-// Nunca falla; si ninguna receta cumple las restricciones devuelve [].
+// Nunca falla; si ninguna receta cumple las restricciones devuelve []. Se le
+// pregunta a la función aunque ninguna receta fija sirva: en el dataset puede
+// haber varias.
 export async function armarPlan(p: PreferenciasPlan): Promise<{ plan: DiaPlan[]; fuente: "ia" | "reglas" }> {
-  if (recetasPosibles(p, RECETAS).length === 0) return { plan: [], fuente: "reglas" };
   try {
     return await generarPlanConIA(p);
   } catch {

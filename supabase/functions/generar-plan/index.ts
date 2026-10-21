@@ -7,7 +7,7 @@
 // electrodomésticos) y Gemini solo puede elegir ids de esa lista. Si Gemini
 // falla, responde el plan de las reglas. Los precios los pone la app.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import {
   ANTOJOS_IDS,
   DIAS,
@@ -19,11 +19,14 @@ import {
   RESTRICCIONES_IDS,
   armarPlanLocal,
   candidatas,
+  esReceta,
   razonDe,
+  respetaRestricciones,
+  sePuedePreparar,
   type DiaPlan,
   type PreferenciasPlan,
 } from "../_shared/plan.ts";
-import type { Receta } from "../_shared/recetas.ts";
+import { RECETAS, type Receta } from "../_shared/recetas.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // Las cuentas nuevas de Google AI Studio ya no tienen acceso a gemini-2.5-flash;
@@ -109,15 +112,61 @@ function validar(body: unknown): PreferenciasPlan | null {
 
 // El anon key va dentro del APK, así que pasar la verificación de JWT del
 // gateway no basta: exigimos una sesión de usuario real para no regalar
-// la cuota de Gemini a cualquiera que lo extraiga.
-async function hayUsuario(req: Request): Promise<boolean> {
+// la cuota de Gemini a cualquiera que lo extraiga. Con ese mismo cliente (y
+// los permisos de ese usuario) se leen las recetas del dataset.
+async function clienteDelUsuario(req: Request): Promise<SupabaseClient | null> {
   const authorization = req.headers.get("Authorization");
-  if (!authorization) return false;
+  if (!authorization) return null;
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authorization } },
   });
   const { data, error } = await supabase.auth.getUser();
-  return !error && !!data.user;
+  return !error && data.user ? supabase : null;
+}
+
+// Qué dietas puede comer, en los términos de la columna `dieta`.
+function dietasPermitidas(restricciones: string[]): string[] {
+  if (restricciones.includes("vegano")) return ["vegana"];
+  if (restricciones.includes("vegetariano")) return ["vegetariana", "vegana"];
+  if (restricciones.includes("pescetariano")) return ["pescado", "vegetariana", "vegana"];
+  return ["carne", "pescado", "vegetariana", "vegana"];
+}
+
+// Cuántas recetas del dataset se traen para que las reglas elijan las mejores.
+const MAX_DEL_DATASET = 80;
+
+// Recetas del dataset que la base ya filtró por lo que no se negocia (ver la
+// migración recetas_del_dataset). Se revisan de nuevo con las mismas reglas
+// que la app: si la base y las reglas no coinciden, gana la más estricta. Si
+// la consulta falla, el plan sale solo con las recetas fijas de la app.
+async function recetasDelDataset(supabase: SupabaseClient, p: PreferenciasPlan): Promise<Receta[]> {
+  const principiante = p.nivelCocina === "principiante" || p.perfil === "estudiante";
+  const { data, error } = await supabase.rpc("recetas_candidatas", {
+    dietas: dietasPermitidas(p.restricciones),
+    sin_gluten: p.restricciones.includes("sin-gluten"),
+    sin_lactosa: p.restricciones.includes("sin-lactosa"),
+    electrodomesticos: p.electrodomesticos,
+    antojos: p.antojos,
+    region: p.perfil === "foraneo" ? p.region : null,
+    max_dificultad: principiante ? 2 : 3,
+    max_precio: p.presupuesto / Math.max(1, p.dias.length),
+    cuantas: MAX_DEL_DATASET,
+  });
+  if (error) {
+    console.error("No se pudieron leer las recetas del dataset", error.message);
+    return [];
+  }
+  return (Array.isArray(data) ? data : []).filter(
+    (r): r is Receta =>
+      esReceta(r) && respetaRestricciones(r, p.restricciones) && sePuedePreparar(r, p.electrodomesticos),
+  );
+}
+
+// La app solo conoce las recetas fijas; a las del dataset les manda la copia.
+function conCopias(plan: DiaPlan[], lista: Receta[]): DiaPlan[] {
+  const fijas = new Set(RECETAS.map((r) => r.id));
+  const porId = new Map(lista.map((r) => [r.id, r]));
+  return plan.map((d) => (fijas.has(d.recetaId) ? d : { ...d, receta: porId.get(d.recetaId) }));
 }
 
 const PERFIL_TEXTO: Record<string, string> = {
@@ -144,7 +193,7 @@ const NIVEL_TEXTO: Record<string, string> = {
 
 function describirReceta(r: Receta): string {
   const ingredientes = r.ingredientes.slice(0, 4).map((i) => i.texto).join("; ");
-  return `- ${r.id} | ${r.nombre} | ${r.region ?? r.cocina} | dificultad ${r.dificultad}/3 | ${r.tiempoMin} min | ` +
+  return `- ${r.id} | ${r.nombre} | ${r.region ?? r.pais ?? r.cocina} | dificultad ${r.dificultad}/3 | ${r.tiempoMin} min | ` +
     `S/ ${r.precio} | ${r.etiquetas.join(", ")} | ${ingredientes}`;
 }
 
@@ -324,7 +373,8 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== "POST") return json({ error: "Método no permitido" }, 405);
 
-  if (!(await hayUsuario(req))) return json({ error: "Inicia sesión para generar un plan" }, 401);
+  const supabase = await clienteDelUsuario(req);
+  if (!supabase) return json({ error: "Inicia sesión para generar un plan" }, 401);
 
   let crudo: unknown;
   try {
@@ -336,25 +386,27 @@ Deno.serve(async (req: Request) => {
   const p = validar(crudo);
   if (!p) return json({ error: "Datos del plan inválidos" }, 400);
 
-  const lista = candidatas(p, MAX_CANDIDATAS);
+  // Primero las del dataset (vienen mezcladas), después las fijas: a igual
+  // puntaje gana la del dataset, para que la semana no se repita.
+  const lista = candidatas(p, MAX_CANDIDATAS, [...(await recetasDelDataset(supabase, p)), ...RECETAS]);
   // Nada cumple sus restricciones con su cocina: mejor un plan vacío que uno
   // que se las salte.
   if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas" });
 
   if (!GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY no configurada; se responde con las reglas");
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave" });
+    return json({ platos: conCopias(armarPlanLocal(p, lista), lista), fuente: "reglas", motivo: "sin_clave" });
   }
 
   const inicio = Date.now();
   try {
     const { platos, variante } = await elegirConGemini(p, lista);
-    return json({ platos: completarPlan(p, lista, platos), fuente: "ia", variante, ms: Date.now() - inicio });
+    return json({ platos: conCopias(completarPlan(p, lista, platos), lista), fuente: "ia", variante, ms: Date.now() - inicio });
   } catch (err) {
     // El detalle de cada fallo queda en los logs; a la app solo le llega un
     // resumen corto (p. ej. "esquema:tardo,libre:429,rapido:404").
     const motivo = err instanceof FalloGemini ? err.message : "error";
     if (!(err instanceof FalloGemini)) console.error("Error inesperado en generar-plan", err);
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo, ms: Date.now() - inicio });
+    return json({ platos: conCopias(armarPlanLocal(p, lista), lista), fuente: "reglas", motivo, ms: Date.now() - inicio });
   }
 });
