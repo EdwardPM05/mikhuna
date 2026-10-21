@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { Image } from "expo-image";
 import type { ColorValue } from "react-native";
+import { useOrders } from "../../context/OrdersContext";
 
 const ICONOS = {
   plan: require("../../src/assets/tabs/plan.png"),
@@ -21,6 +22,9 @@ function IconoTab({ nombre, color }: { nombre: keyof typeof ICONOS; color: Color
 }
 
 export default function TabsLayout() {
+  const { pedidos } = useOrders();
+  const enCurso = pedidos.filter((p) => p.estado !== "entregado").length;
+
   return (
     <Tabs
       screenOptions={{
@@ -28,6 +32,13 @@ export default function TabsLayout() {
         tabBarActiveTintColor: "#E5131B",
         tabBarInactiveTintColor: "#241F21",
         tabBarStyle: { backgroundColor: "#FFFFFF", borderTopColor: "rgba(36,31,33,0.12)" },
+        tabBarLabelStyle: { fontFamily: "NunitoSans_700Bold", fontSize: 11 },
+        tabBarBadgeStyle: {
+          backgroundColor: "#E5131B",
+          color: "#FDF3E7",
+          fontFamily: "NunitoSans_800ExtraBold",
+          fontSize: 10,
+        },
       }}
     >
       <Tabs.Screen
@@ -49,6 +60,7 @@ export default function TabsLayout() {
         options={{
           title: "Pedidos",
           tabBarIcon: ({ color }) => <IconoTab nombre="pedidos" color={color} />,
+          tabBarBadge: enCurso > 0 ? enCurso : undefined,
         }}
       />
       <Tabs.Screen
