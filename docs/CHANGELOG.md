@@ -20,6 +20,14 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Olvidé mi contraseña
+- **Qué:** enlace "¿Olvidaste tu contraseña?" en el login y pantalla nueva `app/(auth)/recuperar.tsx`: correo → código
+  por correo → contraseña nueva → entra a la app. Funciones `enviarCodigoRecuperacion` y `restablecerContrasena` en
+  `AuthContext`. Detalle y plantilla de correo en [FLUJOS.md](FLUJOS.md).
+- **Fuera del código:** hay que cambiar la plantilla *Reset Password* de Supabase para que incluya `{{ .Token }}`; con la
+  plantilla por defecto el correo trae un enlace y no un código. Sin SMTP propio solo llegan correos al equipo del proyecto.
+- **Cómo regresar:** `git revert` del commit (y, si se quiere, volver a la plantilla por defecto en Supabase).
+
 ### Planes y pedidos en Supabase
 - **Qué:** nueva migración `supabase/migrations/20261021020000_planes_y_pedidos.sql` con las tablas `planes` y `pedidos`
   y RLS (cada usuario solo ve y cambia lo suyo; de un pedido solo se pueden cambiar estado, calificación y comentario).

@@ -6,6 +6,21 @@
    - Sin sesión → `(auth)/login` (o `(auth)/registro` desde "Regístrate").
    - Con sesión y distrito ya elegido → `(tabs)` directo.
    - Con sesión y sin distrito (primera vez) → `(onboarding)/ubicacion`.
+   - **"¿Olvidaste tu contraseña?"** en el login → `(auth)/recuperar`: el usuario escribe su correo, Supabase le manda un
+     código (`resetPasswordForEmail`), y con el código y la contraseña nueva (`verifyOtp` tipo `recovery` +
+     `updateUser`) entra directo a la app. Se usa código y no enlace porque la app no tiene deep links configurados.
+
+     Requiere que la plantilla **Reset Password** de Supabase (Authentication → Emails) muestre el código:
+
+     ```html
+     <h2>Recupera tu contraseña de Mikhuna</h2>
+     <p>Tu código es:</p>
+     <h1 style="letter-spacing: 6px">{{ .Token }}</h1>
+     <p>Escríbelo en la app junto con tu nueva contraseña. Si no lo pediste, ignora este correo.</p>
+     ```
+
+     Ojo: sin SMTP propio, Supabase solo envía correos a los miembros del equipo del proyecto y con un límite bajo
+     por hora. Para usuarios reales hay que configurar un SMTP (Authentication → Emails → SMTP Settings).
 2. **`(onboarding)/ubicacion`** — el usuario elige su distrito (o usa su ubicación actual), para saber qué negocios mostrarle cerca.
 3. **`(onboarding)/modo`** — "¿Qué quieres hacer hoy?", la bifurcación central de la app:
    - **"Quiero planear mi semana"** → entra al Flujo A (`(plan)/negocio`).
