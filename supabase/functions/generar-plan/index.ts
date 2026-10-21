@@ -272,7 +272,9 @@ function variantes(): Variante[] {
   return [
     { nombre: "esquema", modelo: GEMINI_MODEL, conEsquema: true, config: configPensamiento(GEMINI_MODEL) },
     { nombre: "libre", modelo: GEMINI_MODEL, conEsquema: false, config: configPensamiento(GEMINI_MODEL) },
-    { nombre: "rapido", modelo: GEMINI_MODEL_RAPIDO, conEsquema: false, config: {} },
+    // Con esquema: sin él, Flash Lite a veces devolvía nombres o ids sin "ds-"
+    // y el plan caía a las reglas ("rapido:ids_invalidos").
+    { nombre: "rapido", modelo: GEMINI_MODEL_RAPIDO, conEsquema: true, config: {} },
   ];
 }
 
@@ -289,8 +291,9 @@ async function pedirPlan(
   prompt: string,
   esquema: unknown,
   permitidos: Set<string>,
+  lista: Receta[],
   signal: AbortSignal,
-): Promise<unknown[]> {
+): Promise<{ dia: string; recetaId: string; razon: string }[]> {
   // La clave va en un header y no en la URL para que no aparezca en
   // mensajes de error de red ni en logs.
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${v.modelo}:generateContent`, {
@@ -326,10 +329,10 @@ async function pedirPlan(
   } catch {
     throw new FalloGemini("json_invalido");
   }
-  const validos = Array.isArray(platos) &&
-    platos.some((x) => x && typeof x === "object" && permitidos.has((x as { recetaId?: string }).recetaId ?? ""));
-  if (!validos) throw new FalloGemini("ids_invalidos");
-  return platos as unknown[];
+  const normalizados = normalizarPlatos(platos, lista);
+  const validos = normalizados.some((x) => permitidos.has(x.recetaId));
+  if (!validos) throw new FalloGemini(`ids_invalidos (${muestraDeIds(platos)})`);
+  return normalizados;
 }
 
 // La primera variante que dé un plan válido gana. Si ninguna llega a tiempo,
@@ -349,7 +352,7 @@ async function elegirConGemini(
   try {
     return await Promise.any(
       variantes().map((v) =>
-        pedirPlan(v, prompt, esquema, permitidos, control.signal).then(
+        pedirPlan(v, prompt, esquema, permitidos, lista, control.signal).then(
           (platos) => ({ platos, variante: `${v.nombre}:${v.modelo}`, fallos: [...fallos].sort() }),
           (err) => {
             const motivo = err instanceof FalloGemini ? err.message : control.signal.aborted ? "tardo" : "red";
@@ -365,6 +368,41 @@ async function elegirConGemini(
     clearTimeout(reloj);
     control.abort(); // corta las variantes que siguen esperando
   }
+}
+
+const normalizar = (t: string) =>
+  t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+
+// Sin esquema, el modelo a veces escribe la receta a su manera: el nombre en vez
+// del id, el id sin "ds-" o con mayúsculas, "Miercoles" sin tilde. Se traduce a
+// lo que sí está en la lista; lo que no calza con nada queda fuera y ese día lo
+// completan las reglas.
+function normalizarPlatos(platos: unknown, lista: Receta[]): { dia: string; recetaId: string; razon: string }[] {
+  if (!Array.isArray(platos)) return [];
+  const porClave = new Map<string, string>();
+  for (const r of lista) {
+    porClave.set(normalizar(r.id), r.id);
+    porClave.set(normalizar(r.nombre), r.id);
+    if (r.id.startsWith("ds-")) porClave.set(r.id.slice(3), r.id);
+  }
+  const dias = new Map(DIAS.map((d) => [normalizar(d), d]));
+  return platos.flatMap((x) => {
+    if (!x || typeof x !== "object") return [];
+    const { dia, recetaId, razon } = x as Record<string, unknown>;
+    if (typeof dia !== "string" || typeof recetaId !== "string") return [];
+    const id = porClave.get(normalizar(recetaId)) ?? porClave.get(normalizar(recetaId).replace(/^ds-?/, ""));
+    const diaBien = dias.get(normalizar(dia));
+    return id && diaBien ? [{ dia: diaBien, recetaId: id, razon: typeof razon === "string" ? razon : "" }] : [];
+  });
+}
+
+// Para el motivo: qué ids mandó el modelo, cortos y sin caracteres raros.
+function muestraDeIds(platos: unknown): string {
+  if (!Array.isArray(platos)) return "sin_lista";
+  return platos
+    .slice(0, 2)
+    .map((x) => String((x as { recetaId?: unknown })?.recetaId ?? "?").replace(/[^\w -]/g, "").slice(0, 25))
+    .join("; ");
 }
 
 // Lo que devuelve Gemini se revisa igual: cada día pedido con un id de la
