@@ -1,9 +1,12 @@
 ﻿# Sube a Supabase Auth las plantillas de correo de supabase/templates/ (registro y
 # recuperación de contraseña), con sus asuntos. Usa el token que guarda
 # `npx supabase login` en el Administrador de credenciales de Windows; no lo imprime.
-# Solo cambia esos cuatro campos de la configuración de Auth; si el proyecto no
-# tiene SMTP y .env.local trae SMTP_GMAIL_USER y SMTP_GMAIL_APP_PASSWORD, también
-# configura el SMTP con Gmail.
+# Solo cambia esos cuatro campos de la configuración de Auth, y además el SMTP si
+# .env.local trae con qué configurarlo:
+#   - Resend (recomendado): RESEND_API_KEY y SMTP_REMITENTE (p. ej. no-reply@abnergonzales.dev,
+#     de un dominio ya verificado en Resend).
+#   - Gmail: SMTP_GMAIL_USER y SMTP_GMAIL_APP_PASSWORD (contraseña de aplicación).
+# Si no trae ninguno, deja el SMTP que ya tenga el proyecto.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/supabase/aplicar-plantillas-correo.ps1
 #
@@ -67,7 +70,7 @@ $actual = Invoke-RestMethod -Method Get -Uri $url -Headers $headers
 "SMTP usuario:   " + $(if ($actual.smtp_user) { $actual.smtp_user } else { "(vacío)" })
 "Remitente:      " + $(if ($actual.smtp_admin_email) { $actual.smtp_admin_email } else { "(vacío)" })
 "Contraseña:     " + $(if ($actual.smtp_pass) { "configurada" } else { "(vacía)" })
-# Lee SMTP_GMAIL_USER y SMTP_GMAIL_APP_PASSWORD de .env.local (no se sube a git).
+# Lee variables de .env.local (no se sube a git).
 function Leer-EnvLocal([string]$nombre) {
   $ruta = Join-Path $Repo ".env.local"
   if (-not (Test-Path $ruta)) { return $null }
@@ -78,16 +81,22 @@ function Leer-EnvLocal([string]$nombre) {
 }
 
 $smtp = @{}
-if (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
-  $gmail = Leer-EnvLocal "SMTP_GMAIL_USER"
-  $clave = Leer-EnvLocal "SMTP_GMAIL_APP_PASSWORD"
-  if (-not $gmail -or -not $clave) {
-    "El proyecto mikhuna (lvkweyiwzkqtojlylinc) no tiene SMTP propio guardado."
-    "Opción A: configúralo en Authentication -> Emails -> SMTP Settings de ese proyecto."
-    "Opción B: agrega a .env.local SMTP_GMAIL_USER=tu@gmail.com y SMTP_GMAIL_APP_PASSWORD=la-clave-de-16-letras"
-    "          y vuelve a correr este script: configura el SMTP con Gmail y sube las plantillas."
-    exit 1
+$resendKey = Leer-EnvLocal "RESEND_API_KEY"
+$remitente = Leer-EnvLocal "SMTP_REMITENTE"
+$gmail = Leer-EnvLocal "SMTP_GMAIL_USER"
+$clave = Leer-EnvLocal "SMTP_GMAIL_APP_PASSWORD"
+if ($resendKey -and $remitente) {
+  # SMTP de Resend: el usuario siempre es "resend" y la contraseña es la API key.
+  "Configurando SMTP con Resend (remitente $remitente)..."
+  $smtp = @{
+    smtp_host        = "smtp.resend.com"
+    smtp_port        = "465"
+    smtp_user        = "resend"
+    smtp_pass        = $resendKey
+    smtp_admin_email = $remitente
+    smtp_sender_name = "Mikhuna"
   }
+} elseif ($gmail -and $clave) {
   "Configurando SMTP con Gmail ($gmail)..."
   $smtp = @{
     smtp_host        = "smtp.gmail.com"
@@ -97,6 +106,12 @@ if (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
     smtp_admin_email = $gmail
     smtp_sender_name = "Mikhuna"
   }
+} elseif (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
+  "El proyecto mikhuna (lvkweyiwzkqtojlylinc) no tiene SMTP propio guardado."
+  "Agrega a .env.local una de estas dos opciones y vuelve a correr este script:"
+  "  Resend: RESEND_API_KEY=re_... y SMTP_REMITENTE=no-reply@tu-dominio (dominio verificado en Resend)"
+  "  Gmail:  SMTP_GMAIL_USER=tu@gmail.com y SMTP_GMAIL_APP_PASSWORD=la-clave-de-16-letras"
+  exit 1
 }
 foreach ($k in $smtp.Keys) { $campos[$k] = $smtp[$k] }
 $cuerpo = $campos | ConvertTo-Json -Depth 3
