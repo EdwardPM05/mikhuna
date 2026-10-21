@@ -2,7 +2,9 @@
 
 <img src="src/assets/images/logo_wordmark.png" alt="Mikhuna" width="300" />
 
-### Planea tu semana, compra en tu barrio y pide cuando no quieras cocinar 🥔🌽🐹
+### La app para quien no sabe qué cocinar 🥔🌽🐹
+
+**Te armamos la semana según quién eres, te decimos dónde comprar cada ingrediente y, si no quieres cocinar, lo pides.**
 
 <sub>*Mikhuna* viene del quechua y significa **"comida"**.</sub>
 
@@ -13,6 +15,15 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-7A1220?style=for-the-badge&logo=typescript&logoColor=FDF3E7)
 ![Supabase](https://img.shields.io/badge/Supabase-auth%20%2B%20db-F7941D?style=for-the-badge&logo=supabase&logoColor=241F21)
 ![Gemini](https://img.shields.io/badge/IA-Gemini-FFC993?style=for-the-badge&logo=googlegemini&logoColor=241F21)
+![Pruebas](https://img.shields.io/badge/pruebas-10%2F10-3A9D5D?style=for-the-badge)
+
+<br />
+
+<img src="docs/img/quien-eres.png" width="200" alt="¿Quién eres?" />
+&nbsp;
+<img src="docs/img/tu-semana-ia.png" width="200" alt="Tu semana elegida con IA" />
+&nbsp;
+<img src="docs/img/receta.png" width="200" alt="Receta" />
 
 </div>
 
@@ -20,26 +31,32 @@
 
 ## 🍲 ¿Qué es Mikhuna?
 
-Una app peruana de **planificación de comidas y delivery**. Le dices qué se te antoja, para cuántos cocinas, cuánta
-plata tienes para la semana y qué hay en tu cocina, y Mikhuna te arma el menú. Después compara los precios de los
-ingredientes entre bodegas, mercados y supermercados, y si un día no tienes ganas de cocinar, pides algo al toque.
+Las apps de delivery parten de *"¿qué restaurante pido?"* y asumen que ya decidiste qué comer. **Mikhuna empieza un paso
+antes:** *"según quién soy y lo que puedo comer, ¿qué me conviene cocinar o pedir esta semana?"*
+
+Le cuentas quién eres, qué se te antoja, para cuántos cocinas, cuánta plata tienes y qué hay en tu cocina. Mikhuna te
+arma un **plan de comidas concreto**, peruano o de otra cocina, te explica **por qué cada plato te sirve**, compara el
+precio de cada ingrediente entre bodegas, mercados y supermercados y, si un día no tienes ganas de cocinar, **pides al
+toque**.
+
+### Para quién es
 
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="src/assets/mascots/papi_papa_saludo.png" width="110" alt="Papi Papa" /><br />
-      <b>Papi Papa</b><br />
-      <sub>Te arma el plan de la semana</sub>
+      <img src="src/assets/mascots/papi_papa_saludo.png" width="100" alt="" /><br />
+      <b>🎒 El que recién cocina solo</b><br />
+      <sub>Estudiantes y gente que recién se independiza: recetas fáciles, sin pasos imposibles.</sub>
     </td>
     <td align="center" width="33%">
-      <img src="src/assets/mascots/choclito.png" width="110" alt="Choclito" /><br />
-      <b>Choclito</b><br />
-      <sub>Te lleva a explorar negocios del barrio</sub>
+      <img src="src/assets/mascots/papi_papa_sierra.png" width="100" alt="" /><br />
+      <b>🧳 El que extraña su tierra</b><br />
+      <sub>Foráneos lejos de casa: comida de la costa, la sierra o la selva, como la de siempre.</sub>
     </td>
     <td align="center" width="33%">
-      <img src="src/assets/mascots/cuy_delivery.png" width="100" alt="Cuy Delivery" /><br />
-      <b>Cuy Delivery</b><br />
-      <sub>Te trae el pedido hasta tu puerta</sub>
+      <img src="src/assets/mascots/papi_papa_checklist.png" width="100" alt="" /><br />
+      <b>💪 El que tiene un objetivo</b><br />
+      <sub>Fitness, intolerancias o dietas: "cualquier receta" no le sirve.</sub>
     </td>
   </tr>
 </table>
@@ -48,20 +65,59 @@ ingredientes entre bodegas, mercados y supermercados, y si un día no tienes gan
 
 | | |
 |---|---|
-| 🗓️ **Plan semanal** | Wizard de 7 pasos: tienda, personas, días, presupuesto, antojos, restricciones y electrodomésticos. |
-| 🤖 **Recetas con IA** | Gemini propone el menú desde una Edge Function de Supabase. |
+| 🙋 **"¿Quién eres?"** | El plan empieza por ti: tu perfil, la comida que extrañas, tu objetivo y tu nivel en la cocina. |
+| 🗓️ **Plan semanal** | Wizard de 8 pasos: quién eres, tienda, personas, días, presupuesto, antojos, restricciones y cocina. |
+| 🤖 **Elegido con IA** | Gemini elige entre recetas reales y te dice por qué cada una te va. Nunca inventa platos ni precios. |
+| 🥗 **Respeta lo que comes** | Vegano, vegetariano, pescetariano, sin gluten o sin lactosa: lo que no puedes comer nunca aparece. |
+| 🍳 **Con lo que tienes** | Si no tienes horno o licuadora, no te toca una receta que los necesite. |
 | 💰 **Billetera** | Cuánto te queda de presupuesto, con una barra que pasa de verde a rojo. |
 | 🛒 **Lista de compras** | Compara el precio de cada ingrediente entre tiendas o márcalo como comprado. |
 | 🔎 **Explorar** | Busca negocios o productos ("pollo" encuentra el mercado que lo vende) y filtra por categoría. |
 | 🛵 **Delivery** | Carrito → checkout → seguimiento en vivo con el cuy → calificación. |
-| 📦 **Tus pedidos** | Historial, seguimiento de lo que está en camino y "Volver a pedir" con un toque. |
+| 📦 **Tus pedidos** | Historial, lo que está en camino y "Volver a pedir" con los precios de hoy. |
+| 📧 **Cuenta con código** | Registro y "Olvidé mi contraseña" con un código que llega a tu correo. |
 | ☁️ **En la nube** | Tu plan y tus pedidos se guardan en Supabase: cambias de celular y siguen ahí. |
 
-## 🚀 Arráncalo en 2 minutos
+<table>
+  <tr>
+    <td align="center"><img src="docs/img/cocina.png" width="180" alt="" /><br /><sub>¿Qué tienes en tu cocina?</sub></td>
+    <td align="center"><img src="docs/img/generando.png" width="180" alt="" /><br /><sub>Papi Papa armando tu semana</sub></td>
+    <td align="center"><img src="docs/img/inicio.png" width="180" alt="" /><br /><sub>Tu billetera y tu misión</sub></td>
+    <td align="center"><img src="docs/img/explorar.png" width="180" alt="" /><br /><sub>Negocios del barrio</sub></td>
+  </tr>
+</table>
+
+## 🤖 Cómo funciona la IA
+
+Usamos un **modo híbrido: reglas + IA**. Lo que no se negocia lo decide el código; lo que es criterio, la IA.
+
+```
+Tus respuestas del wizard
+        │
+        ▼
+1. Reglas (sin IA)        sacan toda receta que choque con tus restricciones o tu cocina
+        │                 y ordenan el resto según quién eres → hasta 20 candidatas
+        ▼
+2. Gemini                 elige una receta por día SOLO de esa lista (no puede inventar)
+        │                 y escribe en una frase por qué te sirve
+        ▼
+3. La app                 pone precios, cantidades y dónde comprar, desde el catálogo real
+        │
+        └─ ¿Gemini tarda, falla o no hay internet? Las mismas reglas arman el plan igual.
+```
+
+- **Nunca se salta una restricción:** `npm test` prueba todas las combinaciones de restricciones, cocinas y perfiles.
+- **Rápido:** le pedimos el plan a Gemini de tres formas a la vez y usamos la primera que llega (~5 s).
+- **Seguro:** la función exige una sesión real y solo acepta valores que la app puede mandar.
+
+Detalle en [docs/IA.md](docs/IA.md) y por qué lo diseñamos así en [docs/ENFOQUE.md](docs/ENFOQUE.md).
+
+## 🚀 Arráncalo
 
 ```bash
 npm install
 npx expo start --web      # o sin --web para Expo Go / emulador
+npm test                  # pruebas de las reglas del plan
 ```
 
 Crea un `.env.local` (no se sube a git):
@@ -70,21 +126,21 @@ Crea un `.env.local` (no se sube a git):
 EXPO_PUBLIC_SUPABASE_URL=...
 EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 
-# opcional: entra solo en desarrollo con una cuenta de pruebas
+# opcional: entra solo en desarrollo con una cuenta de pruebas (no queda en el APK)
 EXPO_PUBLIC_DEV_EMAIL=...
 EXPO_PUBLIC_DEV_PASSWORD=...
 ```
 
-¿Primera vez con la base de datos? Crea las tablas:
+¿Primera vez con la base de datos o la IA?
 
 ```bash
 npx supabase link --project-ref lvkweyiwzkqtojlylinc
-npx supabase db push
+npx supabase db push                                        # tablas, RLS y límites
+npx supabase functions deploy generar-plan --no-verify-jwt  # la función de IA
 ```
 
-> 💡 Para verlo con tamaño de celular en el navegador, o si Supabase está pausado, mira
-> [docs/LOCALHOST.md](docs/LOCALHOST.md). Para sacar el APK de Android:
-> [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md).
+> 💡 Verlo con tamaño de celular en el navegador: [docs/LOCALHOST.md](docs/LOCALHOST.md). Sacar el APK de Android:
+> [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md). Correos con código: [docs/FLUJOS.md](docs/FLUJOS.md).
 
 ## 🎨 La marca
 
@@ -97,56 +153,58 @@ npx supabase db push
 | ![](https://img.shields.io/badge/-%20%20%20%20-7A1220?style=flat-square) **maroon** | `#7A1220` | Texto sobre fondos claros |
 | ![](https://img.shields.io/badge/-%20%20%20%20-241F21?style=flat-square) **ink** | `#241F21` | Texto y contornos |
 
-Títulos en **Baloo 2**, textos en **Nunito Sans**. Todo el detalle está en [docs/BRANDING.md](docs/BRANDING.md).
+Títulos en **Baloo 2**, textos en **Nunito Sans**. Las mascotas: **Papi Papa** arma tu plan (con versiones de costa,
+sierra y selva), **Choclito** te lleva a explorar y el **Cuy Delivery** te trae el pedido. Todo en
+[docs/BRANDING.md](docs/BRANDING.md).
 
 ## 🧰 Stack
 
 - **Expo SDK 57** (bare workflow, `android/` en el repo) + **expo-router** con grupos de rutas
 - **NativeWind v4** — Tailwind para React Native
-- **Supabase** — auth, tablas `planes` y `pedidos` con RLS, y la Edge Function `generar-plan` (solo `anon key` en el cliente)
-- **React Context** para el estado global (sin Redux ni Zustand)
-- **TypeScript** de punta a punta
+- **Supabase** — auth con código por correo (SMTP con Resend), tablas `planes` y `pedidos` con RLS y la Edge Function
+  `generar-plan` (Deno)
+- **Gemini** — elige el plan entre recetas reales, con reglas de respaldo
+- **React Context** para el estado global y **TypeScript** de punta a punta
 
 ## 🗂️ Cómo está armado
 
 ```
-app/            pantallas (expo-router, agrupadas por flujo)
-components/     piezas reutilizables (WizardScreen, BrandButton, CampoTexto, KitchenScene)
-context/        estado global (Auth, PlanWizard, Cart, Orders)
-lib/            catálogo (negocios, ingredientes, recetas), theme, cliente de Supabase
-src/assets/     arte de marca: mascotas, íconos, fondos de cocina, fotos de platos
-supabase/       migraciones SQL y la Edge Function `generar-plan` (Deno + Gemini)
-scripts/        pipeline en Python del dataset de recetas y su visor HTML
-android/        proyecto nativo
-docs/           documentación
+app/                    pantallas (expo-router, agrupadas por flujo)
+components/             piezas reutilizables (WizardScreen, BrandButton, CampoTexto, KitchenScene)
+context/                estado global (Auth, PlanWizard, Cart, Orders)
+lib/                    catálogo, cliente de Supabase, armado del plan (ia.ts), tema
+supabase/functions/
+  _shared/              recetas y reglas del plan, compartidas por la app y la función
+  generar-plan/         Edge Function: reglas + Gemini
+supabase/migrations/    tablas, RLS y límites
+supabase/templates/     correos de registro y recuperación
+scripts/                dataset de recetas (Python), pruebas, plantillas de correo
+src/assets/             mascotas, íconos, fondos de cocina, fotos de platos
+docs/                   documentación
 ```
 
 ## 📚 Documentación
 
 | Doc | De qué va |
 |---|---|
-| [ENFOQUE](docs/ENFOQUE.md) | Qué promete Mikhuna, qué falta y cómo debe funcionar la IA |
-| [BRANDING](docs/BRANDING.md) | Colores, tipografía, mascotas y tono de voz |
+| [ENFOQUE](docs/ENFOQUE.md) | Qué promete Mikhuna, qué falta y por qué la IA funciona así |
+| [FLUJOS](docs/FLUJOS.md) | Onboarding, cuenta, plan semanal, compras, delivery, pedidos y perfil |
+| [IA](docs/IA.md) | El plan con reglas + Gemini: cómo funciona, cómo probarlo y cómo agregar recetas |
 | [ARQUITECTURA](docs/ARQUITECTURA.md) | Carpetas, rutas, contexts y datos |
-| [FLUJOS](docs/FLUJOS.md) | Onboarding, plan semanal, delivery, pedidos y perfil |
-| [IA](docs/IA.md) | Planes con Gemini vía Supabase Edge Function |
+| [BRANDING](docs/BRANDING.md) | Colores, tipografía, mascotas y tono de voz |
 | [DATASET](docs/DATASET.md) | Dataset de recetas: fuentes, limpieza y cantidades |
 | [LOCALHOST](docs/LOCALHOST.md) | Correr en web, verlo como celular y problemas conocidos |
-| [COMPILACION_APK_ANDROID](docs/COMPILACION_APK_ANDROID.md) | Generar un APK de prueba |
+| [COMPILACION_APK_ANDROID](docs/COMPILACION_APK_ANDROID.md) | Generar el APK |
 | [CHANGELOG](docs/CHANGELOG.md) | Qué cambió en cada commit y cómo regresarlo |
 
 ## 🤝 Equipo
 
 <table>
   <tr>
-    <td align="center">
-      <a href="https://github.com/EdwardPM05"><img src="https://github.com/EdwardPM05.png" width="80" alt="EdwardPM05" /><br /><b>EdwardPM05</b></a><br />
-      <sub>Autor</sub>
-    </td>
-    <td align="center">
-      <img src="src/assets/mascots/papi_papa.png" width="80" alt="" /><br /><b>Abner Gonzales</b><br />
-      <sub>Contribuidor</sub>
-    </td>
+    <td align="center"><img src="src/assets/mascots/papi_papa.png" width="70" alt="" /><br /><b>Hubert Hilario Gomez</b></td>
+    <td align="center"><img src="src/assets/mascots/choclito.png" width="70" alt="" /><br /><b>Abner Gonzales Alcarraz</b></td>
+    <td align="center"><img src="src/assets/mascots/cuy_delivery.png" width="64" alt="" /><br /><b>Jesus Pezo Ramirez</b></td>
+    <td align="center"><a href="https://github.com/EdwardPM05"><img src="https://github.com/EdwardPM05.png" width="70" alt="" /><br /><b>Edward Pittman Medina</b></a></td>
   </tr>
 </table>
 
