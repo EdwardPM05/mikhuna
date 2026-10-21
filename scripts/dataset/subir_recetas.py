@@ -33,6 +33,7 @@ def fila(receta: dict) -> dict:
         "tiempo_min": receta["tiempoMin"],
         "precio": receta["precio"],
         "etiquetas": receta["etiquetas"],
+        "claves": receta.get("claves", []),
         "datos": receta,
     }
 

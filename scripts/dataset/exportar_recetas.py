@@ -185,6 +185,64 @@ SAL_Y_ESPECIAS = patron("sal\\b", "pimienta", "comino", "oregano", "laurel", "ca
                         "pimenton", "curry", "nuez moscada", "azafran", "tomillo", "romero", "perejil",
                         "culantro", "cilantro", "hierbabuena", "albahaca", "ajo\\b", "ajos", "agua\\b")
 
+# ---------- Ingredientes clave ----------
+# Lo que identifica a cada ingrediente para comparar recetas ("pechuga de pollo" y "1 pollo entero" son
+# "pollo"). Sirve para que el plan reuse ingredientes en la semana y para buscar recetas parecidas.
+# La misma regla está en clavesDe() de supabase/functions/_shared/plan.ts: si cambias una, cambia la otra.
+PALABRAS_SUELTAS = {
+    "de", "del", "la", "el", "los", "las", "en", "y", "o", "con", "para", "al", "a", "sin", "un", "una",
+    "unidad", "unidades", "sopera", "soperas", "cucharada", "cucharadas", "cucharadita", "cucharaditas",
+    "taza", "tazas", "vaso", "vasos", "lata", "latas", "diente", "dientes", "hoja", "hojas", "rama", "ramas",
+    "ramita", "ramitas", "manojo", "manojos", "atado", "atados", "trozo", "trozos", "rodaja", "rodajas",
+    "filete", "filetes", "pechuga", "pechugas", "muslo", "muslos", "jugo", "zumo", "salsa", "g", "gr",
+    "grs", "gramos", "kg", "kilo", "kilos", "ml", "litro", "litros", "pizca", "chorro", "chorrito",
+    "paquete", "paquetes", "sobre", "sobres", "bolsa", "pieza", "piezas", "cabeza", "cabezas", "tallo",
+    "tallos", "punado", "gran", "grande", "grandes", "mediano", "mediana", "medianos", "medianas",
+    "pequeno", "pequena", "pequenos", "pequenas", "fresco", "fresca", "frescos", "frescas", "picado",
+    "picada", "picados", "picadas", "molido", "molida", "rallado", "rallada", "cocido", "cocida",
+    "cocidos", "cocidas", "entero", "entera", "natural", "naturales", "media", "medio", "cuarto",
+    "presa", "presas", "pierna", "piernas", "tajada", "tajadas",
+    "postre", "cuchara", "cucharas", "cucharilla", "cucharillas", "cda", "cdas", "cdta", "cdtas",
+}
+# Lo que está en casi toda receta: compartirlo no dice nada.
+DESPENSA = {
+    "sal", "pimienta", "ajo", "cebolla", "aceite", "agua", "azucar", "laurel", "harina", "vino", "perejil",
+    "oregano", "comino", "vinagre", "tomillo", "nuez", "canela", "mostaza", "pimenton", "manteca",
+    "mantequilla", "caldo", "levadura", "maicena", "romero", "curry", "paprika", "clavo", "albahaca",
+    "hierbabuena", "mayonesa", "soja", "sillao", "pan", "colorante", "sazonador", "ajinomoto", "culantro",
+}
+SINONIMOS = {"aguacate": "palta", "cilantro": "culantro", "patata": "papa", "judia": "frejol",
+             "frijol": "frejol", "gamba": "langostino", "camaron": "langostino", "res": "carne",
+             "ternera": "carne", "vacuno": "carne", "chancho": "cerdo", "maiz": "choclo", "ajos": "ajo"}
+MAX_CLAVES = 15
+
+
+def singular(palabra: str) -> str:
+    if len(palabra) > 4 and palabra.endswith("es") and palabra[-3] in "lnrdzi":
+        palabra = palabra[:-2]
+    elif len(palabra) > 3 and palabra.endswith("s"):
+        palabra = palabra[:-1]
+    return SINONIMOS.get(palabra, palabra)
+
+
+def clave_de(nombre: str) -> str | None:
+    palabras = re.findall(r"[a-z]+", sin_tildes(re.sub(r"\(.*?\)", " ", nombre)))
+    for palabra in palabras:
+        if palabra not in PALABRAS_SUELTAS and len(palabra) > 2:
+            clave = singular(palabra)
+            return None if clave in DESPENSA else clave
+    return None
+
+
+def claves_de(nombres: list[str]) -> list[str]:
+    claves = []
+    for nombre in nombres:
+        clave = clave_de(nombre)
+        if clave and clave not in claves:
+            claves.append(clave)
+    return claves[:MAX_CLAVES]
+
+
 MAX_PASOS = 15
 MAX_LARGO_PASO = 500
 MAX_BYTES_RECETA = 4500  # 7 recetas copiadas en el plan del usuario tienen que entrar en planes.datos (50 KB)
@@ -403,6 +461,7 @@ def main() -> None:
                     {"texto": i["texto"], **({"ingredienteId": i["catalogo"]} if i["catalogo"] else {})} for i in ings
                 ],
                 "pasos": pasos[:MAX_PASOS],
+                "claves": claves_de([i["nombre"] or i["texto"] for i in ings]),
                 "pais": r["pais"] or None,
             }
             if len(json.dumps(receta, ensure_ascii=False).encode()) > MAX_BYTES_RECETA:
