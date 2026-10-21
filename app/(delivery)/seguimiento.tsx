@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -26,7 +26,7 @@ function destinoDe(paso: number) {
 
 export default function SeguimientoScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { pedidos, pedidoPorId, avanzar } = useOrders();
+  const { pedidos, pedidoPorId, avanzar, cargando } = useOrders();
   // Sin id (por ejemplo, un enlace viejo) se muestra el pedido más reciente.
   const pedido = pedidoPorId(id) ?? (id ? undefined : pedidos[0]);
   const paso = pedido ? ORDEN_ESTADOS.indexOf(pedido.estado) : 0;
@@ -47,6 +47,14 @@ export default function SeguimientoScreen() {
       useNativeDriver: false,
     }).start();
   }, [paso]);
+
+  if (!pedido && cargando) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream items-center justify-center">
+        <ActivityIndicator color="#E5131B" />
+      </SafeAreaView>
+    );
+  }
 
   if (!pedido) {
     return (

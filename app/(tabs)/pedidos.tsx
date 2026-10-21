@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -141,7 +141,7 @@ function TarjetaAnterior({ pedido, onRepetir }: { pedido: Pedido; onRepetir: () 
 }
 
 export default function PedidosScreen() {
-  const { pedidos } = useOrders();
+  const { pedidos, cargando, errorCarga, recargar } = useOrders();
   const { agregar } = useCart();
 
   const enCurso = pedidos.filter((p) => p.estado !== "entregado");
@@ -154,6 +154,26 @@ export default function PedidosScreen() {
       }
     }
     router.push("/(delivery)/carrito");
+  }
+
+  if (pedidos.length === 0 && cargando) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream items-center justify-center">
+        <ActivityIndicator color="#E5131B" />
+        <Text className="font-body text-sm text-ink/50 mt-3">Cargando tus pedidos...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (pedidos.length === 0 && errorCarga) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream px-6 items-center justify-center">
+        <Ionicons name="cloud-offline-outline" size={48} color="rgba(36,31,33,0.3)" />
+        <Text className="font-display text-xl text-ink text-center mt-3 mb-2">Sin conexión</Text>
+        <Text className="font-body text-ink/60 text-center mb-6">{errorCarga}</Text>
+        <BrandButton label="Reintentar" onPress={recargar} />
+      </SafeAreaView>
+    );
   }
 
   if (pedidos.length === 0) {
@@ -178,7 +198,11 @@ export default function PedidosScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
-      <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView
+        className="flex-1 px-6 pt-4"
+        contentContainerStyle={{ paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={cargando} onRefresh={recargar} tintColor="#E5131B" colors={["#E5131B"]} />}
+      >
         <Text className="font-display-bold text-xl text-ink mb-1">Pedidos</Text>
         <Text className="font-body text-sm text-ink/50 mb-5">
           {pedidos.length} {pedidos.length === 1 ? "pedido" : "pedidos"} en total

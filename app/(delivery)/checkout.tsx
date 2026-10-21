@@ -22,14 +22,18 @@ export default function CheckoutScreen() {
   const [metodo, setMetodo] = useState("efectivo");
   const [propina, setPropina] = useState(3);
   const [nota, setNota] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
 
   const negocio = NEGOCIOS.find((n) => n.id === negocioId);
   const totalConPropina = total + propina;
   const faltaDireccion = direccion.trim().length === 0;
 
-  function confirmarPedido() {
-    if (!negocioId || items.length === 0) return;
-    const id = crear({
+  async function confirmarPedido() {
+    if (!negocioId || items.length === 0 || enviando) return;
+    setEnviando(true);
+    setErrorEnvio(null);
+    const { id, error } = await crear({
       negocioId,
       items,
       subtotal: total,
@@ -39,6 +43,11 @@ export default function CheckoutScreen() {
       direccion: direccion.trim(),
       nota: nota.trim(),
     });
+    setEnviando(false);
+    if (error || !id) {
+      setErrorEnvio(error);
+      return;
+    }
     vaciar();
     router.replace({ pathname: "/(delivery)/seguimiento", params: { id } });
   }
@@ -175,7 +184,17 @@ export default function CheckoutScreen() {
             Escribe tu dirección para confirmar el pedido.
           </Text>
         ) : null}
-        <BrandButton label="Confirmar pedido" disabled={faltaDireccion} onPress={confirmarPedido} />
+        {errorEnvio ? (
+          <View className="flex-row items-start bg-chili/10 rounded-xl px-3 py-2.5 mb-2">
+            <Ionicons name="alert-circle" size={16} color="#E5131B" style={{ marginTop: 1 }} />
+            <Text className="font-body-semibold text-xs text-maroon ml-2 flex-1">{errorEnvio}</Text>
+          </View>
+        ) : null}
+        <BrandButton
+          label={enviando ? "Enviando pedido..." : "Confirmar pedido"}
+          disabled={faltaDireccion || enviando}
+          onPress={confirmarPedido}
+        />
       </View>
     </SafeAreaView>
   );
