@@ -209,7 +209,7 @@ DESPENSA = {
     "sal", "pimienta", "ajo", "cebolla", "aceite", "agua", "azucar", "laurel", "harina", "vino", "perejil",
     "oregano", "comino", "vinagre", "tomillo", "nuez", "canela", "mostaza", "pimenton", "manteca",
     "mantequilla", "caldo", "levadura", "maicena", "romero", "curry", "paprika", "clavo", "albahaca",
-    "hierbabuena", "mayonesa", "soja", "sillao", "pan", "colorante", "sazonador", "ajinomoto", "culantro",
+    "hierbabuena", "mayonesa", "soja", "soya", "sillao", "sillau", "pan", "colorante", "sazonador", "ajinomoto", "culantro",
 }
 SINONIMOS = {"aguacate": "palta", "cilantro": "culantro", "patata": "papa", "judia": "frejol",
              "frijol": "frejol", "gamba": "langostino", "camaron": "langostino", "res": "carne",
@@ -260,6 +260,18 @@ def verdad(valor: str) -> bool:
     return valor == "True"
 
 
+# Restos de la lista de Python mal partida ("…dejar macerar.', '") y emojis que llegaron con la
+# codificación rota ("â¤ï¸"): se quitan para que el paso se lea limpio en la app.
+RESTOS_LISTA = re.compile(r"""^[\s\[\]'"]+|[\s\[\]'",]+$""")
+CODIFICACION_ROTA = re.compile(r"(?:[ÃÂâðï][-¿]+)+|[🀀-🫿☀-➿️]")
+
+
+def limpiar_paso(paso: str) -> str:
+    paso = CODIFICACION_ROTA.sub("", paso)
+    paso = RESTOS_LISTA.sub("", paso)
+    return re.sub(r"\s{2,}", " ", paso).strip()
+
+
 def lista_json(valor: str) -> list[str]:
     """Los pasos vienen como lista JSON y, en algunas fuentes, como una lista de Python metida dentro."""
     try:
@@ -271,9 +283,11 @@ def lista_json(valor: str) -> list[str]:
             items = ast.literal_eval(items[0])
         except (ValueError, SyntaxError):
             pass
+    # Algunas fuentes pegan varios pasos en uno: "…de gustos.', '2 Añade la harina…".
+    items = [parte for item in items for parte in re.split(r"['\"]\s*,\s*['\"]", str(item))]
     pasos = []
     for paso in items:
-        paso = re.sub(r"^\s*(?:paso\s*)?\d{1,2}\s*[.)\-:]?\s+", "", str(paso), flags=re.I).strip()
+        paso = re.sub(r"^\s*(?:paso\s*)?\d{1,2}\s*[.)\-:]?\s+", "", limpiar_paso(str(paso)), flags=re.I).strip()
         if len(paso) >= 8:
             pasos.append(paso if len(paso) <= MAX_LARGO_PASO else paso[: MAX_LARGO_PASO - 1].rsplit(" ", 1)[0] + "…")
     return pasos
