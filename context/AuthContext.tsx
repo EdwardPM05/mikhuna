@@ -33,14 +33,18 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Solo en desarrollo: evita tener que loguearse a mano en cada recarga
-// mientras se prueba la app. No corre en un build de producción (__DEV__
-// es false ahí). Las credenciales vienen de .env.local (no se suben a git);
-// si no están, se salta el auto-login y se muestra el login normal.
-const DEV_AUTO_LOGIN = {
-  email: process.env.EXPO_PUBLIC_DEV_EMAIL ?? "",
-  password: process.env.EXPO_PUBLIC_DEV_PASSWORD ?? "",
-};
-const HAY_AUTO_LOGIN = __DEV__ && DEV_AUTO_LOGIN.email !== "" && DEV_AUTO_LOGIN.password !== "";
+// mientras se prueba la app. Las credenciales vienen de .env.local (no se
+// suben a git); si no están, se salta el auto-login y se muestra el login
+// normal. Se leen dentro del `__DEV__ ?` a propósito: así el minificador
+// borra la rama en producción y la contraseña no queda dentro del APK
+// (Expo copia las EXPO_PUBLIC_* tal cual en el bundle).
+const DEV_AUTO_LOGIN = __DEV__
+  ? {
+      email: process.env.EXPO_PUBLIC_DEV_EMAIL ?? "",
+      password: process.env.EXPO_PUBLIC_DEV_PASSWORD ?? "",
+    }
+  : null;
+const HAY_AUTO_LOGIN = !!DEV_AUTO_LOGIN && DEV_AUTO_LOGIN.email !== "" && DEV_AUTO_LOGIN.password !== "";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -56,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
-        if (!data.session && HAY_AUTO_LOGIN) {
+        if (!data.session && HAY_AUTO_LOGIN && DEV_AUTO_LOGIN) {
           autoLoginEnCurso = true;
           const { data: login } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
           setSession(login.session); // null si las credenciales de dev fallan o no hay red
