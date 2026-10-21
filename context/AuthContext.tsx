@@ -15,6 +15,14 @@ type AuthContextValue = {
     nombre: string
   ) => Promise<{ error: string | null; conSesion: boolean }>;
   signOut: () => Promise<void>;
+  // "Olvidé mi contraseña": Supabase manda un código al correo (plantilla
+  // "Reset Password" con {{ .Token }}) y con ese código se pone la nueva.
+  enviarCodigoRecuperacion: (email: string) => Promise<{ error: string | null }>;
+  restablecerContrasena: (
+    email: string,
+    codigo: string,
+    nueva: string
+  ) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -79,10 +87,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  async function enviarCodigoRecuperacion(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    return { error: error ? mensajeDeError(error.message) : null };
+  }
+
+  async function restablecerContrasena(email: string, codigo: string, nueva: string) {
+    // Verificar el código inicia sesión; con esa sesión se cambia la contraseña.
+    const { error: errorCodigo } = await supabase.auth.verifyOtp({ email, token: codigo, type: "recovery" });
+    if (errorCodigo) return { error: mensajeDeError(errorCodigo.message) };
+    const { error } = await supabase.auth.updateUser({ password: nueva });
+    return { error: error ? mensajeDeError(error.message) : null };
+  }
+
   const nombre = nombreVisible(session);
 
   return (
-    <AuthContext.Provider value={{ session, loading, nombre, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{
+        session,
+        loading,
+        nombre,
+        signIn,
+        signUp,
+        signOut,
+        enviarCodigoRecuperacion,
+        restablecerContrasena,
+      }}>
       {children}
     </AuthContext.Provider>
   );
@@ -96,6 +126,10 @@ function mensajeDeError(mensaje: string) {
   if (m.includes("already registered")) return "Ya existe una cuenta con ese correo.";
   if (m.includes("password should be")) return "La contraseña debe tener al menos 6 caracteres.";
   if (m.includes("invalid format") || m.includes("is invalid")) return "Ese correo no parece válido.";
+  if (m.includes("token has expired") || m.includes("otp") || m.includes("invalid token"))
+    return "El código no es válido o ya venció. Pide uno nuevo.";
+  if (m.includes("should be different")) return "La nueva contraseña tiene que ser distinta a la anterior.";
+  if (m.includes("security purposes")) return "Espera unos segundos antes de pedir otro código.";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un momento y vuelve a probar.";
   if (m.includes("fetch") || m.includes("network")) return "No hay conexión. Revisa tu internet e inténtalo de nuevo.";
   return mensaje;

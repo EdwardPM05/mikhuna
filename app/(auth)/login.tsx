@@ -79,6 +79,15 @@ export default function LoginScreen() {
             returnKeyType="go"
             onSubmitEditing={handleLogin}
           />
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: "/(auth)/recuperar", params: email.trim() ? { email: email.trim() } : {} })
+            }
+            hitSlop={8}
+            className="self-end -mt-1 mb-3 active:opacity-60"
+          >
+            <Text className="font-body-semibold text-sm text-chili">¿Olvidaste tu contraseña?</Text>
+          </Pressable>
 
           {error && (
             <View className="flex-row items-start bg-chili/10 rounded-xl px-3 py-2.5 mb-3">
