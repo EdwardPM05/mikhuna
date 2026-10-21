@@ -48,13 +48,12 @@ const MAX_CANDIDATAS = 20;
 
 // Elegir 7 ids de una lista no necesita que el modelo "piense" mucho, y
 // pensando tardaba más que el plazo. Cada generación de Gemini lo configura
-// distinto; para otros modelos no se manda nada. En Gemini 3 solo los Flash
-// aceptan "minimal": un Pro responde 400 y hay que pedirle "low".
-function configPensamiento(modelo: string, nivel: "minimal" | "low") {
+// distinto; para otros modelos no se manda nada. En Gemini 3 se pide "low":
+// "minimal" no lo aceptan todos (el modelo del proyecto responde 400 "Thinking
+// level MINIMAL is not supported for this model").
+function configPensamiento(modelo: string) {
   if (modelo.startsWith("gemini-2.5-flash")) return { thinkingConfig: { thinkingBudget: 0 } };
-  if (modelo.startsWith("gemini-3")) {
-    return { thinkingConfig: { thinkingLevel: modelo.includes("flash") ? nivel : "low" } };
-  }
+  if (modelo.startsWith("gemini-3")) return { thinkingConfig: { thinkingLevel: "low" } };
   return {};
 }
 
@@ -271,8 +270,8 @@ type Variante = { nombre: string; modelo: string; conEsquema: boolean; config: R
 
 function variantes(): Variante[] {
   return [
-    { nombre: "esquema", modelo: GEMINI_MODEL, conEsquema: true, config: configPensamiento(GEMINI_MODEL, "minimal") },
-    { nombre: "libre", modelo: GEMINI_MODEL, conEsquema: false, config: configPensamiento(GEMINI_MODEL, "low") },
+    { nombre: "esquema", modelo: GEMINI_MODEL, conEsquema: true, config: configPensamiento(GEMINI_MODEL) },
+    { nombre: "libre", modelo: GEMINI_MODEL, conEsquema: false, config: configPensamiento(GEMINI_MODEL) },
     { nombre: "rapido", modelo: GEMINI_MODEL_RAPIDO, conEsquema: false, config: {} },
   ];
 }
