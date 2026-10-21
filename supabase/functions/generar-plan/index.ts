@@ -29,8 +29,8 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // Las cuentas nuevas de Google AI Studio ya no tienen acceso a gemini-2.5-flash;
 // cada proyecto de Supabase puede fijar otro con `supabase secrets set GEMINI_MODEL=...`.
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// Modelo liviano de respaldo: elige igual de bien entre ids y responde rápido.
+const GEMINI_MODEL_RAPIDO = Deno.env.get("GEMINI_MODEL_RAPIDO") ?? "gemini-flash-lite-latest";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,9 +44,9 @@ const MAX_CANDIDATAS = 20;
 // Elegir 7 ids de una lista no necesita que el modelo "piense" mucho, y
 // pensando tardaba más que el plazo. Cada generación de Gemini lo configura
 // distinto; para otros modelos no se manda nada.
-function configPensamiento(modelo: string) {
+function configPensamiento(modelo: string, nivel: "minimal" | "low") {
   if (modelo.startsWith("gemini-2.5-flash")) return { thinkingConfig: { thinkingBudget: 0 } };
-  if (modelo.startsWith("gemini-3")) return { thinkingConfig: { thinkingLevel: "low" } };
+  if (modelo.startsWith("gemini-3")) return { thinkingConfig: { thinkingLevel: nivel } };
   return {};
 }
 
@@ -172,7 +172,10 @@ objetivo, la comida que extraña, sus antojos y su presupuesto. Varía la semana
 le sirvan) y evita poner dos días seguidos platos muy parecidos.
 
 Para cada día escribe en "razon" una frase corta en español (máximo 90 caracteres), hablándole de tú, de por qué ese
-plato le sirve (por ejemplo: "Fácil y con proteína para después del gym"). No inventes datos que no estén en la lista.`;
+plato le sirve (por ejemplo: "Fácil y con proteína para después del gym"). No inventes datos que no estén en la lista.
+
+Responde SOLO con este JSON, sin texto antes ni después:
+{"platos":[{"dia":"${p.dias[0]}","recetaId":"<id de la lista>","razon":"<frase>"}]}`;
 }
 
 function esquemaRespuesta(p: PreferenciasPlan, lista: Receta[]) {
@@ -196,42 +199,106 @@ function esquemaRespuesta(p: PreferenciasPlan, lista: Receta[]) {
   };
 }
 
-function esperar(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 // Cuánto se le espera a Gemini en total. Tiene que ser bastante menos que el
 // límite de Supabase (~150 s, si no la función muere con 546) y que lo que la
 // app espera (lib/ia.ts): pasado esto se responde con las reglas.
 const PLAZO_GEMINI_MS = 18000;
 
-// Gemini en la capa gratis devuelve 503 (sobrecargado) o 429 (cuota) seguido,
-// sobre todo en horas pico. Son errores transitorios: unos segundos después
-// suele funcionar, así que reintentamos con backoff mientras quede plazo.
-// Si Gemini no contesta a tiempo, fetch se corta y lanza un error.
-async function llamarGeminiConReintentos(cuerpo: unknown, intentos = 3): Promise<Response> {
-  const limite = Date.now() + PLAZO_GEMINI_MS;
-  let ultimaRespuesta: Response | null = null;
-  for (let intento = 0; intento < intentos; intento++) {
-    // La clave va en un header y no en la URL para que no aparezca en
-    // mensajes de error de red ni en logs.
-    const res = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY! },
-      body: JSON.stringify(cuerpo),
-      signal: AbortSignal.timeout(Math.max(1000, limite - Date.now())),
-    });
+// Formas de pedirle el plan a Gemini. Se lanzan todas a la vez y gana la
+// primera que devuelva un plan válido; las demás se cancelan. Así, si una
+// configuración es lenta o el modelo está saturado, otra responde a tiempo.
+type Variante = { nombre: string; modelo: string; conEsquema: boolean; config: Record<string, unknown> };
 
-    if (res.ok) return res;
+function variantes(): Variante[] {
+  return [
+    { nombre: "esquema", modelo: GEMINI_MODEL, conEsquema: true, config: configPensamiento(GEMINI_MODEL, "minimal") },
+    { nombre: "libre", modelo: GEMINI_MODEL, conEsquema: false, config: configPensamiento(GEMINI_MODEL, "low") },
+    { nombre: "rapido", modelo: GEMINI_MODEL_RAPIDO, conEsquema: false, config: {} },
+  ];
+}
 
-    const reintentable = res.status === 503 || res.status === 429;
-    ultimaRespuesta = res;
-    const espera = 800 * Math.pow(2, intento); // 800ms, 1.6s, 3.2s...
-    if (!reintentable || intento === intentos - 1 || Date.now() + espera + 3000 > limite) return res;
+class FalloGemini extends Error {}
 
-    await esperar(espera);
+// Sin esquema el modelo a veces envuelve el JSON en ```json ... ```.
+function extraerJson(texto: string): unknown {
+  const limpio = texto.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  return JSON.parse(limpio);
+}
+
+async function pedirPlan(
+  v: Variante,
+  prompt: string,
+  esquema: unknown,
+  permitidos: Set<string>,
+  signal: AbortSignal,
+): Promise<unknown[]> {
+  // La clave va en un header y no en la URL para que no aparezca en
+  // mensajes de error de red ni en logs.
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${v.modelo}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY! },
+    signal,
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        ...(v.conEsquema ? { responseSchema: esquema } : {}),
+        temperature: 0.7,
+        // Los modelos que "piensan" gastan parte de este límite antes de
+        // responder; con muy poco se cortan sin dar el plan.
+        maxOutputTokens: 8192,
+        ...v.config,
+      },
+    }),
+  });
+  if (!res.ok) {
+    console.error(`Gemini (${v.nombre}, ${v.modelo}) falló`, res.status, await res.text());
+    throw new FalloGemini(String(res.status));
   }
-  return ultimaRespuesta!;
+  const data = await res.json();
+  const texto = data.candidates?.[0]?.content?.parts?.find((parte: { text?: string }) => parte.text)?.text;
+  // finishReason dice por qué vino vacío (MAX_TOKENS, SAFETY...), sin datos internos.
+  if (!texto) throw new FalloGemini(`sin_texto_${data.candidates?.[0]?.finishReason ?? "vacia"}`);
+  let platos: unknown;
+  try {
+    platos = (extraerJson(texto) as { platos?: unknown }).platos;
+  } catch {
+    throw new FalloGemini("json_invalido");
+  }
+  const validos = Array.isArray(platos) &&
+    platos.some((x) => x && typeof x === "object" && permitidos.has((x as { recetaId?: string }).recetaId ?? ""));
+  if (!validos) throw new FalloGemini("ids_invalidos");
+  return platos as unknown[];
+}
+
+// La primera variante que dé un plan válido gana. Si ninguna llega a tiempo,
+// el error trae qué le pasó a cada una, para saber qué ajustar.
+async function elegirConGemini(p: PreferenciasPlan, lista: Receta[]): Promise<{ platos: unknown[]; variante: string }> {
+  const prompt = construirPrompt(p, lista);
+  const esquema = esquemaRespuesta(p, lista);
+  const permitidos = new Set(lista.map((r) => r.id));
+  const control = new AbortController();
+  const reloj = setTimeout(() => control.abort(new DOMException("plazo", "TimeoutError")), PLAZO_GEMINI_MS);
+  const fallos: string[] = [];
+  try {
+    return await Promise.any(
+      variantes().map((v) =>
+        pedirPlan(v, prompt, esquema, permitidos, control.signal).then(
+          (platos) => ({ platos, variante: `${v.nombre}:${v.modelo}` }),
+          (err) => {
+            const motivo = err instanceof FalloGemini ? err.message : control.signal.aborted ? "tardo" : "red";
+            fallos.push(`${v.nombre}:${motivo}`);
+            throw err;
+          },
+        )
+      ),
+    );
+  } catch {
+    throw new FalloGemini(fallos.sort().join(","));
+  } finally {
+    clearTimeout(reloj);
+    control.abort(); // corta las variantes que siguen esperando
+  }
 }
 
 // Lo que devuelve Gemini se revisa igual: cada día pedido con un id de la
@@ -272,47 +339,22 @@ Deno.serve(async (req: Request) => {
   const lista = candidatas(p, MAX_CANDIDATAS);
   // Nada cumple sus restricciones con su cocina: mejor un plan vacío que uno
   // que se las salte.
-  if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas", modelo: GEMINI_MODEL });
+  if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas" });
 
   if (!GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY no configurada; se responde con las reglas");
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave", modelo: GEMINI_MODEL });
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave" });
   }
 
-  // Los detalles de Gemini se quedan en los logs de la función: pueden traer
-  // información interna que no le sirve a la app.
+  const inicio = Date.now();
   try {
-    const geminiRes = await llamarGeminiConReintentos({
-      contents: [{ parts: [{ text: construirPrompt(p, lista) }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: esquemaRespuesta(p, lista),
-        temperature: 0.7,
-        // Los modelos que "piensan" gastan parte de este límite antes de
-        // responder; con muy poco se cortan sin dar el plan.
-        maxOutputTokens: 8192,
-        ...configPensamiento(GEMINI_MODEL),
-      },
-    });
-
-    if (!geminiRes.ok) {
-      console.error("Gemini falló", geminiRes.status, await geminiRes.text());
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_${geminiRes.status}`, modelo: GEMINI_MODEL });
-    }
-
-    const data = await geminiRes.json();
-    const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!texto) {
-      console.error("Respuesta vacía de Gemini", JSON.stringify(data));
-      // finishReason dice por qué (MAX_TOKENS, SAFETY...), sin datos internos.
-      const porque = data.candidates?.[0]?.finishReason ?? "vacia";
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_sin_texto_${porque}`, modelo: GEMINI_MODEL });
-    }
-
-    return json({ platos: completarPlan(p, lista, JSON.parse(texto).platos), fuente: "ia" });
+    const { platos, variante } = await elegirConGemini(p, lista);
+    return json({ platos: completarPlan(p, lista, platos), fuente: "ia", variante, ms: Date.now() - inicio });
   } catch (err) {
-    console.error("Error inesperado en generar-plan", err);
-    const tardo = err instanceof DOMException && err.name === "TimeoutError";
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: tardo ? "gemini_tardo" : "error", modelo: GEMINI_MODEL });
+    // El detalle de cada fallo queda en los logs; a la app solo le llega un
+    // resumen corto (p. ej. "esquema:tardo,libre:429,rapido:404").
+    const motivo = err instanceof FalloGemini ? err.message : "error";
+    if (!(err instanceof FalloGemini)) console.error("Error inesperado en generar-plan", err);
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo, ms: Date.now() - inicio });
   }
 });
