@@ -19,8 +19,20 @@
      `powershell -ExecutionPolicy Bypass -File scripts/supabase/aplicar-plantillas-correo.ps1` (usa la sesión de
      `npx supabase login`). Si se editan en el dashboard en vez de aquí, se pierden al volver a correr el script.
 
-     Ojo: sin SMTP propio, Supabase solo envía correos a los miembros del equipo del proyecto y con un límite bajo
-     por hora. Para usuarios reales hay que configurar un SMTP (Authentication → Emails → SMTP Settings).
+     **Requiere SMTP propio.** Con el servidor de correo por defecto, Supabase (plan gratuito) no deja cambiar las
+     plantillas ("Email template modification is not available for free tier projects using the default email
+     provider"): el correo llega con un enlace y no con código, y además solo se envía a los miembros del equipo.
+     Con eso el registro funciona igual (abrir el enlace confirma la cuenta), pero "Olvidé mi contraseña" no.
+
+     Configuración con Gmail:
+     1. Activar la verificación en 2 pasos de la cuenta de Google y crear una contraseña de aplicación en
+        https://myaccount.google.com/apppasswords.
+     2. Supabase → Authentication → Emails → SMTP Settings → *Enable custom SMTP*: host `smtp.gmail.com`, puerto
+        `465`, usuario y remitente = el Gmail, contraseña = la de aplicación (16 letras, sin espacios), nombre
+        `Mikhuna`.
+     3. Correr `scripts/supabase/aplicar-plantillas-correo.ps1`.
+
+     Gmail permite unos 500 envíos al día; Supabase además limita los correos por hora (Authentication → Rate Limits).
 2. **`(onboarding)/ubicacion`** — el usuario elige su distrito (o usa su ubicación actual), para saber qué negocios mostrarle cerca.
 3. **`(onboarding)/modo`** — "¿Qué quieres hacer hoy?", la bifurcación central de la app:
    - **"Quiero planear mi semana"** → entra al Flujo A (`(plan)/negocio`).
