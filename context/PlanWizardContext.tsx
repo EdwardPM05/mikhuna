@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
+import type { Region } from "../supabase/functions/_shared/recetas.ts";
+import type { DiaPlan, NivelCocina, Objetivo, Perfil } from "../supabase/functions/_shared/plan.ts";
 
 export type ListaPlan =
   | "dias"
@@ -25,6 +27,17 @@ export type PlanData = {
   // por ingrediente, en qué negocio prefiere comprarlo — si no eligió
   // ninguno, se usa el más barato por defecto (ver lib/catalogo.ts).
   preferenciasCompra: Record<string, string>;
+  // "¿Quién eres?" (primer paso del wizard).
+  perfil: Perfil | null;
+  region: Region | null; // la comida que extraña, si es foráneo
+  objetivo: Objetivo | null;
+  nivelCocina: NivelCocina | null;
+  // El plan ya elegido (por la IA o por las reglas), un plato por día. Se
+  // guarda para que no cambie cada vez que se abre la app.
+  planSemana: DiaPlan[];
+  // null: todavía no se armó con esta versión (un plan viejo se arma con las
+  // reglas al abrirlo).
+  planFuente: "ia" | "reglas" | null;
 };
 
 const INICIAL: PlanData = {
@@ -38,6 +51,12 @@ const INICIAL: PlanData = {
   electrodomesticos: [],
   comprados: [],
   preferenciasCompra: {},
+  perfil: null,
+  region: null,
+  objetivo: null,
+  nivelCocina: null,
+  planSemana: [],
+  planFuente: null,
 };
 
 type PlanWizardValue = {

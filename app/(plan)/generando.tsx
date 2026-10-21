@@ -4,12 +4,18 @@ import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { usePlanWizard } from "../../context/PlanWizardContext";
+import { armarPlan, preferenciasDe } from "../../lib/ia";
 
 const PASOS = [
-  "Cruzando tus platos con lo que hay en tu zona",
-  "Ajustando el presupuesto por proveedor",
-  "Armando tu lista de compras",
+  "Entendiendo quién eres y lo que puedes comer",
+  "Eligiendo recetas que te sirvan de verdad",
+  "Armando tu semana y tu lista de compras",
 ];
+
+const PASO_MS = 1100;
+// Aunque el plan salga al instante, la animación se ve completa.
+const DURACION_MINIMA_MS = PASOS.length * PASO_MS + 900;
 
 const INGREDIENTES = [
   require("../../src/assets/ingredientes/aji.png"),
@@ -108,16 +114,31 @@ function OrbitaIngredientes() {
 }
 
 export default function GenerandoScreen() {
+  const { data, update } = usePlanWizard();
   const [listos, setListos] = useState(0);
 
   useEffect(() => {
-    const temporizadores = PASOS.map((_, i) =>
-      setTimeout(() => setListos(i + 1), (i + 1) * 1100)
+    let vigente = true;
+    let salida: ReturnType<typeof setTimeout> | undefined;
+    const inicio = Date.now();
+    // El último paso se marca recién cuando el plan está listo: si la IA
+    // tarda, la pantalla espera ahí en vez de fingir que terminó.
+    const temporizadores = PASOS.slice(0, -1).map((_, i) =>
+      setTimeout(() => setListos(i + 1), (i + 1) * PASO_MS)
     );
-    const salida = setTimeout(() => router.replace("/(tabs)"), PASOS.length * 1100 + 900);
+    armarPlan(preferenciasDe(data)).then(({ plan, fuente }) => {
+      if (!vigente) return;
+      update({ planSemana: plan, planFuente: fuente });
+      const resto = Math.max(0, DURACION_MINIMA_MS - (Date.now() - inicio));
+      salida = setTimeout(() => {
+        setListos(PASOS.length);
+        salida = setTimeout(() => router.replace("/(tabs)"), 500);
+      }, Math.max(0, resto - 500));
+    });
     return () => {
+      vigente = false;
       temporizadores.forEach(clearTimeout);
-      clearTimeout(salida);
+      if (salida) clearTimeout(salida);
     };
   }, []);
 

@@ -1,4 +1,7 @@
-export const TOTAL_PASOS = 7;
+import { RECETAS as RECETAS_BASE, type Receta as RecetaBase } from "../supabase/functions/_shared/recetas.ts";
+import { DIAS } from "../supabase/functions/_shared/plan.ts";
+
+export const TOTAL_PASOS = 8;
 
 export type TipoNegocio = "Restaurante" | "Bodega" | "Mercado" | "Supermercado";
 
@@ -239,7 +242,7 @@ export const INGREDIENTES: Ingrediente[] = [
   },
 ];
 
-export const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+export { DIAS };
 
 export type Antojo = { id: string; nombre: string; icono: number };
 
@@ -276,223 +279,18 @@ export const ELECTRODOMESTICOS: Electrodomestico[] = [
   { id: "freidora", nombre: "Freidora de aire" },
 ];
 
-export type IngredienteReceta = {
-  texto: string;
-  // id de INGREDIENTES cuando el ingrediente existe en el catálogo de compras,
-  // así se puede saber si el usuario ya lo marcó como comprado.
-  ingredienteId?: string;
+// Las recetas viven en supabase/functions/_shared/recetas.ts porque la Edge
+// Function generar-plan usa exactamente las mismas: la IA solo elige entre
+// ellas. Aquí se les agrega lo que solo existe en la app, como la foto.
+export type { IngredienteReceta, Region } from "../supabase/functions/_shared/recetas.ts";
+
+const FOTOS: Record<string, number> = {
+  "causa-limena": require("../src/assets/platos/causa-limena.jpg"),
 };
 
-export type Receta = {
-  id: string;
-  nombre: string;
-  antojoId: string;
-  ingredienteIcono: string; // id de INGREDIENTES, para mostrar su ícono
-  tiempoMin: number;
-  precio: number;
-  ingredientes: IngredienteReceta[];
-  pasos: string[];
-  foto?: number; // foto real del plato, cuando la tengamos
-};
+export type Receta = RecetaBase & { foto?: number };
 
-export const RECETAS: Receta[] = [
-  {
-    id: "lomo-saltado",
-    nombre: "Lomo saltado",
-    antojoId: "criolla",
-    ingredienteIcono: "tomate",
-    tiempoMin: 25,
-    precio: 22,
-    ingredientes: [
-      { texto: "400g de lomo de res en tiras" },
-      { texto: "2 tomates en gajos", ingredienteId: "tomate" },
-      { texto: "1 cebolla roja en tiras", ingredienteId: "cebolla" },
-      { texto: "2 ajíes amarillos en tiras", ingredienteId: "aji" },
-      { texto: "3 cucharadas de sillao" },
-      { texto: "Papas fritas y arroz para acompañar" },
-    ],
-    pasos: [
-      "Sazona la carne con sal y pimienta y séllala en la sartén bien caliente.",
-      "Retira la carne y en la misma sartén saltea la cebolla y el ají amarillo.",
-      "Agrega el tomate y saltea unos segundos más sin que se deshaga.",
-      "Regresa la carne, añade el sillao y mezcla todo a fuego alto.",
-      "Sirve de inmediato con papas fritas y arroz blanco.",
-    ],
-  },
-  {
-    id: "aji-gallina",
-    nombre: "Ají de gallina",
-    antojoId: "rapida",
-    ingredienteIcono: "aji",
-    tiempoMin: 30,
-    precio: 18,
-    ingredientes: [
-      { texto: "1 pechuga de pollo deshilachada" },
-      { texto: "4 cucharadas de ají amarillo licuado", ingredienteId: "aji" },
-      { texto: "3 panes remojados en leche" },
-      { texto: "1 cebolla picada", ingredienteId: "cebolla" },
-      { texto: "2 dientes de ajo", ingredienteId: "ajo" },
-      { texto: "Queso parmesano y nueces al gusto" },
-    ],
-    pasos: [
-      "Sancocha la pechuga y deshílachala en tiras finas.",
-      "Licúa el pan remojado en leche hasta obtener una crema.",
-      "Sofríe la cebolla y el ajo, luego añade el ají amarillo licuado.",
-      "Incorpora la crema de pan y el pollo deshilachado, cocina a fuego bajo.",
-      "Sirve sobre arroz blanco con una papa sancochada y una aceituna.",
-    ],
-  },
-  {
-    id: "causa-limena",
-    nombre: "Causa limeña",
-    antojoId: "saludable",
-    ingredienteIcono: "palta",
-    tiempoMin: 20,
-    precio: 16,
-    foto: require("../src/assets/platos/causa-limena.jpg"),
-    ingredientes: [
-      { texto: "6 papas amarillas sancochadas" },
-      { texto: "3 limones", ingredienteId: "limon" },
-      { texto: "4 cucharadas de ají amarillo licuado", ingredienteId: "aji" },
-      { texto: "1 palta en láminas", ingredienteId: "palta" },
-      { texto: "Pollo o atún para el relleno" },
-      { texto: "Mayonesa al gusto" },
-    ],
-    pasos: [
-      "Prensa las papas aún calientes hasta lograr un puré fino.",
-      "Mezcla el puré con el jugo de limón, el ají amarillo y sal al gusto.",
-      "Divide la masa en dos y coloca una capa en un molde.",
-      "Agrega el relleno de pollo o atún con mayonesa y cubre con la palta.",
-      "Cierra con la otra capa de masa, desmolda y refrigera antes de servir.",
-    ],
-  },
-  {
-    id: "tallarin-verde",
-    nombre: "Tallarín verde",
-    antojoId: "menu-dia",
-    ingredienteIcono: "choclo",
-    tiempoMin: 25,
-    precio: 14,
-    ingredientes: [
-      { texto: "300g de tallarines" },
-      { texto: "2 tazas de hojas de espinaca y albahaca" },
-      { texto: "1/2 taza de queso fresco" },
-      { texto: "1 choclo desgranado y sancochado", ingredienteId: "choclo" },
-      { texto: "1 diente de ajo", ingredienteId: "ajo" },
-      { texto: "Un chorrito de leche evaporada" },
-    ],
-    pasos: [
-      "Cocina los tallarines en agua con sal hasta que estén al dente.",
-      "Licúa las hojas verdes con el queso fresco, el ajo y la leche.",
-      "Vierte la mezcla en una sartén y calienta sin dejar hervir.",
-      "Mezcla la salsa con los tallarines escurridos.",
-      "Sirve con el choclo desgranado y un huevo frito encima si gustas.",
-    ],
-  },
-  {
-    id: "arroz-chaufa",
-    nombre: "Arroz chaufa",
-    antojoId: "antojo-chifa",
-    ingredienteIcono: "cebolla",
-    tiempoMin: 20,
-    precio: 17,
-    ingredientes: [
-      { texto: "3 tazas de arroz cocido y frío" },
-      { texto: "150g de pollo en cubos" },
-      { texto: "2 huevos batidos" },
-      { texto: "1 cebolla china picada" },
-      { texto: "1 cebolla roja en cubos", ingredienteId: "cebolla" },
-      { texto: "3 cucharadas de sillao y aceite de ajonjolí" },
-    ],
-    pasos: [
-      "Saltea el pollo hasta dorar y resérvalo.",
-      "En la misma sartén, cocina los huevos batidos y trocéalos.",
-      "Agrega la cebolla roja y saltea a fuego alto.",
-      "Incorpora el arroz frío y el sillao, mezclando bien para que no se pegue.",
-      "Añade el pollo, la cebolla china y unas gotas de aceite de ajonjolí antes de servir.",
-    ],
-  },
-  {
-    id: "quinotto-palta",
-    nombre: "Quinotto de palta",
-    antojoId: "vegetariana",
-    ingredienteIcono: "palta",
-    tiempoMin: 30,
-    precio: 15,
-    ingredientes: [
-      { texto: "1 taza de quinua lavada" },
-      { texto: "1 palta madura", ingredienteId: "palta" },
-      { texto: "1/2 cebolla picada", ingredienteId: "cebolla" },
-      { texto: "2 dientes de ajo", ingredienteId: "ajo" },
-      { texto: "2 tazas de caldo de verduras" },
-      { texto: "Queso parmesano al gusto" },
-    ],
-    pasos: [
-      "Sofríe la cebolla y el ajo hasta que estén transparentes.",
-      "Agrega la quinua y tuéstala un par de minutos.",
-      "Vierte el caldo poco a poco, removiendo como un risotto, hasta que la quinua esté cocida.",
-      "Licúa la mitad de la palta con un poco de caldo e incorpórala a la olla.",
-      "Sirve con láminas de la palta restante y queso parmesano.",
-    ],
-  },
-  {
-    id: "pollo-fit",
-    nombre: "Pollo a la plancha fit",
-    antojoId: "proteica",
-    ingredienteIcono: "limon",
-    tiempoMin: 20,
-    precio: 19,
-    ingredientes: [
-      { texto: "1 pechuga de pollo" },
-      { texto: "1 limón", ingredienteId: "limon" },
-      { texto: "1 diente de ajo picado", ingredienteId: "ajo" },
-      { texto: "Ensalada de hojas verdes" },
-      { texto: "1 camote sancochado" },
-      { texto: "Sal, pimienta y orégano al gusto" },
-    ],
-    pasos: [
-      "Marina la pechuga con jugo de limón, ajo, sal, pimienta y orégano.",
-      "Deja reposar 10 minutos para que tome sabor.",
-      "Cocina en una plancha o sartén caliente hasta dorar ambos lados.",
-      "Corta el camote sancochado en rodajas.",
-      "Sirve el pollo con la ensalada y el camote al lado.",
-    ],
-  },
-  {
-    id: "menestron",
-    nombre: "Menestrón",
-    antojoId: "economica",
-    ingredienteIcono: "culantro",
-    tiempoMin: 35,
-    precio: 10,
-    ingredientes: [
-      { texto: "1 zanahoria en cubos" },
-      { texto: "1 taza de habas o frejoles" },
-      { texto: "2 papas en cubos" },
-      { texto: "1 taza de fideos" },
-      { texto: "Culantro fresco picado", ingredienteId: "culantro" },
-      { texto: "1 trozo de choclo en rodajas", ingredienteId: "choclo" },
-    ],
-    pasos: [
-      "Hierve agua con sal y agrega la zanahoria y las habas primero.",
-      "Suma las papas y el choclo, y cocina hasta que ablanden.",
-      "Añade los fideos y cocina hasta que estén al dente.",
-      "Sazona con sal y pimienta al gusto.",
-      "Sirve bien caliente con culantro fresco picado por encima.",
-    ],
-  },
-];
-
-export type DiaConReceta = { dia: string; receta: Receta };
-
-export function generarPlanSemana(diasSeleccionados: string[], antojosSeleccionados: string[]): DiaConReceta[] {
-  const candidatas = antojosSeleccionados.length
-    ? RECETAS.filter((r) => antojosSeleccionados.includes(r.antojoId))
-    : RECETAS;
-  const pool = candidatas.length ? candidatas : RECETAS;
-  const diasOrdenados = DIAS.filter((d) => diasSeleccionados.includes(d));
-  return diasOrdenados.map((dia, i) => ({ dia, receta: pool[i % pool.length] }));
-}
+export const RECETAS: Receta[] = RECETAS_BASE.map((r) => ({ ...r, foto: FOTOS[r.id] }));
 
 export const DISTRITOS = [
   "Ate", "Barranco", "Breña", "Carabayllo", "Chorrillos", "Comas", "El Agustino",

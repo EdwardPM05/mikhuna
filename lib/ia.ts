@@ -1,87 +1,107 @@
-// Cliente de la Edge Function `generar-plan` (Supabase → Gemini).
-//
-// Por ahora esto NO está conectado al wizard — `generarPlanSemana()` en
-// catalogo.ts sigue siendo lo que arma el plan por defecto. Esta función
-// queda lista para probarla o enchufarla cuando se decida.
+// Arma el plan semanal: primero le pide a la Edge Function `generar-plan` que
+// Gemini elija entre las recetas que cumplen lo que el usuario puede comer, y
+// si eso falla (sin internet, sin cuota, respuesta rara) lo arma con las
+// mismas reglas aquí en el celular. Ver docs/ENFOQUE.md.
 import { supabase } from "./supabase";
-import { DIAS, INGREDIENTES, type DiaConReceta, type IngredienteReceta, type Receta } from "./catalogo";
+import { RECETAS, type Receta } from "./catalogo";
+import type { PlanData } from "../context/PlanWizardContext";
+import {
+  DIAS,
+  armarPlanLocal,
+  recetasPosibles,
+  type DiaPlan,
+  type PreferenciasPlan,
+} from "../supabase/functions/_shared/plan.ts";
 
-type RespuestaPlato = {
-  dia: string;
-  nombre: string;
-  antojoId: string;
-  tiempoMin: number;
-  ingredientes: IngredienteReceta[];
-  pasos: string[];
-};
+// Lo que espera el usuario mirando la pantalla "Generando" antes de que se
+// use el plan de las reglas.
+const ESPERA_MAXIMA_MS = 15000;
 
-type RespuestaGeminiPlan = { platos: RespuestaPlato[] } | { error: string; detalle?: string };
+// fuente "reglas": la función no pudo usar a Gemini y armó el plan con las reglas.
+type RespuestaPlan = { platos: DiaPlan[]; fuente?: "ia" | "reglas" } | { error: string };
 
-function slug(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-// La IA nunca decide precios: se estiman acá, contra el catálogo real de
-// INGREDIENTES (la oferta más barata de cada uno). Los ingredientes que no
-// están en el catálogo (carne, condimentos, etc.) se estiman con un monto
-// fijo, dejando claro que es un estimado y no un precio real.
-const ESTIMADO_INGREDIENTE_SIN_CATALOGO = 4;
-
-function estimarPrecio(ingredientes: IngredienteReceta[]): number {
-  return ingredientes.reduce((total, item) => {
-    const ingrediente = item.ingredienteId
-      ? INGREDIENTES.find((i) => i.id === item.ingredienteId)
-      : undefined;
-    if (!ingrediente) return total + ESTIMADO_INGREDIENTE_SIN_CATALOGO;
-    const masBarato = Math.min(...ingrediente.ofertas.map((o) => o.precio));
-    return total + masBarato;
-  }, 0);
-}
-
-function iconoParaIngredientes(ingredientes: IngredienteReceta[]): string {
-  const conCatalogo = ingredientes.find((i) => i.ingredienteId);
-  return conCatalogo?.ingredienteId ?? INGREDIENTES[0].id;
-}
-
-export async function generarPlanConIA(input: {
-  dias: string[];
-  antojos: string[];
-  restricciones: string[];
-  presupuesto: number;
-  personas: number;
-}): Promise<DiaConReceta[]> {
-  const { data, error } = await supabase.functions.invoke<RespuestaGeminiPlan>("generar-plan", {
-    body: input,
+function conLimiteDeTiempo<T>(promesa: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("La IA tardó demasiado")), ms);
+    promesa.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      }
+    );
   });
+}
 
+// La respuesta se revisa de nuevo aquí: cada día pedido, en orden, con una
+// receta que exista y que cumpla las restricciones. Si algo no cuadra, ese
+// plan no se usa.
+function validar(platos: unknown, p: PreferenciasPlan): DiaPlan[] | null {
+  if (!Array.isArray(platos)) return null;
+  const permitidas = new Set(recetasPosibles(p, RECETAS).map((r) => r.id));
+  const dias = DIAS.filter((d) => p.dias.includes(d));
+  const plan: DiaPlan[] = [];
+  for (const dia of dias) {
+    const plato = platos.find((x) => x && typeof x === "object" && x.dia === dia);
+    if (!plato || typeof plato.recetaId !== "string" || !permitidas.has(plato.recetaId)) return null;
+    plan.push({ dia, recetaId: plato.recetaId, razon: typeof plato.razon === "string" ? plato.razon : "" });
+  }
+  return plan;
+}
+
+export async function generarPlanConIA(
+  p: PreferenciasPlan
+): Promise<{ plan: DiaPlan[]; fuente: "ia" | "reglas" }> {
+  const { data, error } = await conLimiteDeTiempo(
+    supabase.functions.invoke<RespuestaPlan>("generar-plan", { body: p }),
+    ESPERA_MAXIMA_MS
+  );
   if (error) throw new Error(`No se pudo generar el plan con IA: ${error.message}`);
   if (!data || "error" in data) {
-    throw new Error(`Gemini no devolvió un plan válido: ${data && "error" in data ? data.error : "respuesta vacía"}`);
+    throw new Error(`La IA no devolvió un plan válido: ${data && "error" in data ? data.error : "respuesta vacía"}`);
   }
-  // Sin al menos un plato no hay con qué rellenar los días que falten.
-  if (!Array.isArray(data.platos) || data.platos.length === 0) {
-    throw new Error("Gemini no devolvió un plan válido: no propuso ningún plato");
-  }
+  const plan = validar(data.platos, p);
+  if (!plan) throw new Error("La IA devolvió recetas que no calzan con el plan");
+  return { plan, fuente: data.fuente === "reglas" ? "reglas" : "ia" };
+}
 
-  const diasOrdenados = DIAS.filter((d) => input.dias.includes(d));
+export function preferenciasDe(data: PlanData): PreferenciasPlan {
+  return {
+    dias: data.dias,
+    antojos: data.antojos,
+    restricciones: data.restricciones,
+    electrodomesticos: data.electrodomesticos,
+    presupuesto: data.presupuesto,
+    personas: data.personas,
+    perfil: data.perfil,
+    region: data.region,
+    objetivo: data.objetivo,
+    nivelCocina: data.nivelCocina,
+  };
+}
 
-  return diasOrdenados.map((dia) => {
-    const plato = data.platos.find((p) => p.dia === dia) ?? data.platos[0];
-    const receta: Receta = {
-      id: `ia-${slug(plato.nombre)}`,
-      nombre: plato.nombre,
-      antojoId: plato.antojoId,
-      ingredienteIcono: iconoParaIngredientes(plato.ingredientes),
-      tiempoMin: plato.tiempoMin,
-      precio: Math.round(estimarPrecio(plato.ingredientes)),
-      ingredientes: plato.ingredientes,
-      pasos: plato.pasos,
-    };
-    return { dia, receta };
+export type PlatoDelDia = { dia: string; receta: Receta; razon: string };
+
+// Lo que se muestra en "Tu semana". Un plan hecho antes de que existiera
+// planSemana se arma con las reglas al vuelo (y respeta sus restricciones).
+export function platosDeLaSemana(data: PlanData): PlatoDelDia[] {
+  const plan = data.planFuente === null ? armarPlanLocal(preferenciasDe(data), RECETAS) : data.planSemana;
+  return plan.flatMap(({ dia, recetaId, razon }) => {
+    const receta = RECETAS.find((r) => r.id === recetaId);
+    return receta ? [{ dia, receta, razon }] : [];
   });
+}
+
+// El plan que se guarda: el de la IA si funcionó, si no el de las reglas.
+// Nunca falla; si ninguna receta cumple las restricciones devuelve [].
+export async function armarPlan(p: PreferenciasPlan): Promise<{ plan: DiaPlan[]; fuente: "ia" | "reglas" }> {
+  if (recetasPosibles(p, RECETAS).length === 0) return { plan: [], fuente: "reglas" };
+  try {
+    return await generarPlanConIA(p);
+  } catch {
+    return { plan: armarPlanLocal(p, RECETAS), fuente: "reglas" };
+  }
 }

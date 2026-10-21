@@ -5,7 +5,8 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanWizard } from "../../context/PlanWizardContext";
 import { useAuth } from "../../context/AuthContext";
-import { ANTOJOS, INGREDIENTES, generarPlanSemana } from "../../lib/catalogo";
+import { ANTOJOS, INGREDIENTES } from "../../lib/catalogo";
+import { platosDeLaSemana } from "../../lib/ia";
 import { BrandButton } from "../../components/BrandButton";
 
 const META_MISION = 3;
@@ -72,13 +73,38 @@ export default function PlanScreen() {
           <Text className="font-body text-ink/60 text-center mb-8">
             Arma tu semana según lo que se te antoja y lo que tienes en casa.
           </Text>
-          <BrandButton label="Armar mi plan" onPress={() => router.push("/(plan)/negocio")} />
+          <BrandButton label="Armar mi plan" onPress={() => router.push("/(plan)/quien-eres")} />
         </View>
       </SafeAreaView>
     );
   }
 
-  const plan = generarPlanSemana(data.dias, data.antojos);
+  const plan = platosDeLaSemana(data);
+
+  // Ninguna receta cumple a la vez sus restricciones y lo que tiene en la
+  // cocina: se le dice en vez de mostrarle algo que no puede comer o hacer.
+  if (plan.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream px-6">
+        <View className="flex-1 items-center justify-center">
+          <Image
+            source={require("../../src/assets/mascots/papi_papa_checklist.png")}
+            style={{ width: 130, height: 130, marginBottom: 16 }}
+            contentFit="contain"
+          />
+          <Text className="font-display text-2xl text-ink text-center mb-2">
+            No encontramos recetas para todo lo que marcaste
+          </Text>
+          <Text className="font-body text-ink/60 text-center mb-8">
+            Ninguna receta cumple a la vez tus restricciones y lo que tienes en la cocina. Prueba marcando otro
+            electrodoméstico o revisando tus restricciones.
+          </Text>
+          <BrandButton label="Ajustar mi plan" onPress={() => router.push("/(plan)/quien-eres")} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const gastoSemana = plan.reduce((s, p) => s + p.receta.precio, 0);
   const restante = Math.max(0, data.presupuesto - gastoSemana);
   // Un plan viejo puede no traer presupuesto: sin él, cualquier gasto ya lo supera.
@@ -211,11 +237,16 @@ export default function PlanScreen() {
         </Pressable>
 
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="font-display-bold text-base text-ink">Tu semana</Text>
+          <View>
+            <Text className="font-display-bold text-base text-ink">Tu semana</Text>
+            {data.planFuente === "ia" ? (
+              <Text className="font-body-semibold text-[11px] text-mango">✨ Elegida para ti con IA</Text>
+            ) : null}
+          </View>
           <Text className="font-body text-xs text-ink/50">{plan.length} días planeados</Text>
         </View>
 
-        {plan.map(({ dia, receta }, i) => {
+        {plan.map(({ dia, receta, razon }, i) => {
           const ingrediente = INGREDIENTES.find((ing) => ing.id === receta.ingredienteIcono);
           return (
             <Pressable
@@ -247,6 +278,11 @@ export default function PlanScreen() {
                     {receta.tiempoMin} min · {data.personas}p
                   </Text>
                 </View>
+                {razon ? (
+                  <Text className="font-body text-[11px] text-ink/55 mt-1" numberOfLines={2}>
+                    {razon}
+                  </Text>
+                ) : null}
               </View>
               <Text className="font-display-bold text-sm text-chili ml-2">S/{receta.precio}</Text>
             </Pressable>
