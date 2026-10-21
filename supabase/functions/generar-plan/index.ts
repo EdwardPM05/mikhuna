@@ -191,10 +191,17 @@ function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cuánto se le espera a Gemini en total. Tiene que ser bastante menos que el
+// límite de Supabase (~150 s, si no la función muere con 546) y que lo que la
+// app espera (lib/ia.ts): pasado esto se responde con las reglas.
+const PLAZO_GEMINI_MS = 18000;
+
 // Gemini en la capa gratis devuelve 503 (sobrecargado) o 429 (cuota) seguido,
 // sobre todo en horas pico. Son errores transitorios: unos segundos después
-// suele funcionar, así que reintentamos con backoff antes de rendirnos.
+// suele funcionar, así que reintentamos con backoff mientras quede plazo.
+// Si Gemini no contesta a tiempo, fetch se corta y lanza un error.
 async function llamarGeminiConReintentos(cuerpo: unknown, intentos = 3): Promise<Response> {
+  const limite = Date.now() + PLAZO_GEMINI_MS;
   let ultimaRespuesta: Response | null = null;
   for (let intento = 0; intento < intentos; intento++) {
     // La clave va en un header y no en la URL para que no aparezca en
@@ -203,15 +210,17 @@ async function llamarGeminiConReintentos(cuerpo: unknown, intentos = 3): Promise
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY! },
       body: JSON.stringify(cuerpo),
+      signal: AbortSignal.timeout(Math.max(1000, limite - Date.now())),
     });
 
     if (res.ok) return res;
 
     const reintentable = res.status === 503 || res.status === 429;
     ultimaRespuesta = res;
-    if (!reintentable || intento === intentos - 1) return res;
+    const espera = 800 * Math.pow(2, intento); // 800ms, 1.6s, 3.2s...
+    if (!reintentable || intento === intentos - 1 || Date.now() + espera + 3000 > limite) return res;
 
-    await esperar(800 * Math.pow(2, intento)); // 800ms, 1.6s, 3.2s...
+    await esperar(espera);
   }
   return ultimaRespuesta!;
 }
@@ -254,11 +263,11 @@ Deno.serve(async (req: Request) => {
   const lista = candidatas(p, MAX_CANDIDATAS);
   // Nada cumple sus restricciones con su cocina: mejor un plan vacío que uno
   // que se las salte.
-  if (lista.length === 0) return json({ platos: [], fuente: "reglas" });
+  if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas" });
 
   if (!GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY no configurada; se responde con las reglas");
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave" });
   }
 
   // Los detalles de Gemini se quedan en los logs de la función: pueden traer
@@ -270,25 +279,30 @@ Deno.serve(async (req: Request) => {
         responseMimeType: "application/json",
         responseSchema: esquemaRespuesta(p, lista),
         temperature: 0.7,
-        maxOutputTokens: 2048,
+        // Los modelos que "piensan" gastan parte de este límite antes de
+        // responder; con muy poco se cortan sin dar el plan.
+        maxOutputTokens: 8192,
       },
     });
 
     if (!geminiRes.ok) {
       console.error("Gemini falló", geminiRes.status, await geminiRes.text());
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_${geminiRes.status}` });
     }
 
     const data = await geminiRes.json();
     const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!texto) {
       console.error("Respuesta vacía de Gemini", JSON.stringify(data));
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
+      // finishReason dice por qué (MAX_TOKENS, SAFETY...), sin datos internos.
+      const porque = data.candidates?.[0]?.finishReason ?? "vacia";
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_sin_texto_${porque}` });
     }
 
     return json({ platos: completarPlan(p, lista, JSON.parse(texto).platos), fuente: "ia" });
   } catch (err) {
     console.error("Error inesperado en generar-plan", err);
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas" });
+    const tardo = err instanceof DOMException && err.name === "TimeoutError";
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: tardo ? "gemini_tardo" : "error" });
   }
 });

@@ -14,8 +14,9 @@ import {
 } from "../supabase/functions/_shared/plan.ts";
 
 // Lo que espera el usuario mirando la pantalla "Generando" antes de que se
-// use el plan de las reglas.
-const ESPERA_MAXIMA_MS = 15000;
+// use el plan de las reglas. Un poco más que el plazo que la función le da a
+// Gemini (PLAZO_GEMINI_MS), para que alcance a responder con su propio respaldo.
+const ESPERA_MAXIMA_MS = 22000;
 
 // fuente "reglas": la función no pudo usar a Gemini y armó el plan con las reglas.
 type RespuestaPlan = { platos: DiaPlan[]; fuente?: "ia" | "reglas" } | { error: string };

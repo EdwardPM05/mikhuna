@@ -71,7 +71,7 @@ curl -s -X POST "https://lvkweyiwzkqtojlylinc.supabase.co/functions/v1/generar-p
 ```
 
 Sin token responde `401`; con valores que la app no manda (un día mal escrito, un antojo inventado, más de 12
-personas) responde `400`. Los errores de Gemini se ven en los logs: `npx supabase functions logs generar-plan`.
+personas) responde `400`. Cuando responde con las reglas trae `motivo` (`gemini_tardo`, `gemini_429`, `gemini_sin_texto_MAX_TOKENS`…). El detalle queda en los logs del dashboard: https://supabase.com/dashboard/project/lvkweyiwzkqtojlylinc/functions/generar-plan/logs.
 
 ## Seguridad y costo
 
