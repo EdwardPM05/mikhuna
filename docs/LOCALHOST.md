@@ -46,14 +46,14 @@ npx supabase projects list
 
 ## 1. Requisitos (una sola vez)
 
-| Qué | Versión usada | Nota |
+| Qué | Versión comprobada | Nota |
 |---|---|---|
-| Node.js | 24.x | `node -v` |
-| npm | 11.x | `npm -v` |
+| Node.js | 22.16.0 | `node -v` |
+| npm | 10.9.2 | `npm -v` |
 | Git | cualquiera reciente | |
 
 ```powershell
-cd C:\Users\epitt\OneDrive\Desktop\Mikhuna
+cd <carpeta del repo>
 npm install
 ```
 
@@ -69,10 +69,24 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY
 # opcionales, solo para el inicio de sesión automático en desarrollo (§5)
 EXPO_PUBLIC_DEV_EMAIL
 EXPO_PUBLIC_DEV_PASSWORD
+
+# solo para scripts/supabase/aplicar-plantillas-correo.ps1 (la app no las lee)
+RESEND_API_KEY        # Resend (recomendado); la clave empieza con re_
+SMTP_REMITENTE        # remitente verificado en Resend, p. ej. no-reply@tu-dominio
+SMTP_GMAIL_USER       # alternativa: Gmail
+SMTP_GMAIL_APP_PASSWORD
 ```
 
 Solo van la URL y la clave pública (`anon`). La clave de Gemini **no está en el cliente**: es un secreto del proyecto de
 Supabase (`GEMINI_API_KEY`, ver [IA.md](IA.md)). Sin estas dos variables la app abre pero no conecta con Supabase.
+
+Las plantillas de correo (confirmar registro y recuperar contraseña) se suben con:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/supabase/aplicar-plantillas-correo.ps1
+```
+
+Ese script usa el token que deja `npx supabase login` y solo cambia el SMTP si `.env.local` trae con qué configurarlo.
 
 ---
 
@@ -132,11 +146,12 @@ Tamaños útiles: **375 × 812** (iPhone clásico), **390 × 844** (iPhone 14/15
 ## 4. Verificar un cambio (flujo de trabajo)
 
 1. Editar el código (el servidor recarga solo).
-2. Revisar tipos: `npx tsc --noEmit`. El 6 oct 2026 pasa **con 0 errores**; si aparece alguno, es nuevo.
-3. Probar en el navegador **con tamaño de celular** (§3), en el flujo completo que toca el cambio.
-4. Cambios en la Edge Function: volver a desplegar con
-   `npx supabase functions deploy generar-plan --no-verify-jwt` (ver [IA.md](IA.md)).
-5. Dejar el registro: una entrada nueva arriba en [CHANGELOG.md](CHANGELOG.md) con "Qué" y "Cómo regresar", y commit.
+2. Revisar tipos: `npx tsc --noEmit`. El 21 oct 2026 pasa **sin errores**; si aparece alguno, es nuevo.
+3. Si el cambio toca las reglas del plan o las recetas: `npm test` (10 pruebas de `scripts/pruebas/plan.test.ts`).
+4. Probar en el navegador **con tamaño de celular** (§3), en el flujo completo que toca el cambio.
+5. Cambios en la Edge Function: volver a desplegar con
+   `npx supabase functions deploy generar-plan --no-verify-jwt` (ver [IA.md](IA.md)). Cambios en `supabase/migrations/`: `npx supabase db push` (§0).
+6. Dejar el registro: una entrada nueva arriba en [CHANGELOG.md](CHANGELOG.md) con "Qué" y "Cómo regresar", y commit.
 
 ---
 
@@ -180,6 +195,7 @@ npm install                                   # instalar dependencias
 npm run web                                   # servidor web en :8081
 npx expo start --web --port 8082              # segundo servidor
 npx tsc --noEmit                              # revisar tipos
+npm test                                      # pruebas de las reglas del plan
 npx supabase projects list                    # ¿el proyecto está ACTIVE?
 curl.exe -s -o NUL -w "%{http_code}" http://localhost:8081
 ```

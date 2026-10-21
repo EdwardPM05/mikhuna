@@ -3,10 +3,12 @@
 Base de recetas en español para la búsqueda y la lista de compras. Se arma con dos scripts en [`scripts/dataset/`](../scripts/dataset/); los datos procesados viven en `data/` (ignorado por git, se regenera).
 
 ```bash
-pip install pandas pyarrow
+pip install pandas
 python scripts/dataset/build_recipes.py    # une, limpia y normaliza  -> data/processed/recipes.csv + ingredients.csv
 python scripts/dataset/build_viewer.py     # visor HTML para revisar  -> data/processed/visor/index.html
 ```
+
+`build_recipes.py` lee los CSV de la carpeta de descargas (`--downloads`, por defecto `~/Downloads`) y escribe en `--out` (por defecto `data/processed`). `build_viewer.py` lee `--data` (por defecto `data/processed`).
 
 ## Fuentes
 
@@ -49,7 +51,7 @@ Valores que la fuente trae mal (p. ej. "400 kilogramos de nueces", "170 Harina" 
 
 ## Visor de revisión
 
-`build_viewer.py` genera un visor local (doble clic en `index.html`, sin servidor): busca por título o ingrediente, filtra por país/fuente/calidad, y muestra cada ingrediente con su texto original, la cantidad normalizada, el peso estimado y las marcas de revisión (heurístico, dudoso, animal, cantidad sospechosa). Está pensado para recorrer recetas antes de cargarlas a Supabase.
+`build_viewer.py` genera un visor local (doble clic en `index.html`, sin servidor): busca por título o ingrediente, filtra por país y fuente, y tiene casillas para las marcas de revisión (parseo dudoso, cantidad sospechosa, duración sospechosa, comensales sospechosos, posible duplicado). Muestra cada ingrediente con su texto original, la cantidad normalizada, el peso estimado y las etiquetas heurístico, dudoso, animal y catálogo. Está pensado para recorrer recetas antes de cargarlas a Supabase. Los datos van en fragmentos `datos/` que se cargan con `<script>`, por eso no necesita servidor.
 
 ## Pendiente
 

@@ -29,12 +29,23 @@ Regla de mano: `chili` es la acción, `mango` es el estado, `peach`/`cream` son 
 En [`src/assets/mascots/`](../src/assets/mascots/):
 
 - **Papi Papa** — la papa protagonista, mascota principal de la app. Cuerpo redondeado tipo sticker, guantes blancos, moño rojo. Tiene variantes:
-  - `papi_papa.png` — versión base/ícono pequeño.
-  - `papi_papa_checklist.png` — caminando, usada en la barra de progreso del wizard.
-  - `papi_papa_saludo.png` / `papi_papa_apunta.png` — medio cuerpo, saludando o señalando, usadas en el header "Hola" de la pantalla Plan.
-  - `papi_papa_costa.png`, `_sierra.png`, `_selva.png` — variantes regionales (con sombrero/vestimenta típica de cada región) para la pantalla de "generando tu plan".
-- **Choclito** — mascota secundaria (`choclito.png`), para el Flujo B (delivery inmediato).
-- **Cuy Delivery** (`cuy_delivery.png`) — mascota del repartidor/delivery.
+  - `papi_papa.png` — versión base, en la elección de modo (onboarding).
+  - `papi_papa_checklist.png` — caminando, usada en la barra de progreso del wizard (`WizardScreen`), en la pestaña Plan y en recuperar contraseña.
+  - `papi_papa_saludo.png` — medio cuerpo, saludando, en login y registro.
+  - `papi_papa_apunta.png` — medio cuerpo, señalando, en la pestaña Plan.
+  - `papi_papa_costa.png`, `_sierra.png`, `_selva.png` — variantes regionales (con sombrero/vestimenta típica de cada región), para elegir la región en "¿Quién eres?" y en la pantalla "generando tu plan".
+- **Choclito** — mascota secundaria (`choclito.png`), para el Flujo B (delivery inmediato): en Explorar y al calificar un pedido.
+- **Cuy Delivery** (`cuy_delivery.png`) — mascota del repartidor/delivery: en seguimiento y en pedidos, y en la elección de modo.
+- **Billetera** (`billetera.png`) — en la tarjeta de presupuesto de la pestaña Plan.
+
+Los archivos `choclito_ref.jpg` y `papi_papa_ref.jpg` son referencias de arte; la app no los usa.
+
+### Logos (`src/assets/images/`)
+
+- `logo_wordmark.png` — logo con el nombre, en login, registro y ubicación.
+- `logo_icon.png` — ícono de la app (`app.json` → `icon`).
+- `logo_icon_foreground.png` — capa de primer plano del ícono adaptativo de Android (fondo `#FDF3E7`).
+- `logo_splash_padded.png` — imagen de la pantalla de carga (`expo-splash-screen`).
 
 Todo el arte de marca (mascotas, íconos de antojos/restricciones/ingredientes, fondos de cocina) es generado por el dueño del producto y entregado como PNG con transparencia — no se dibuja a mano en código. El estilo consistente en todos ellos: contorno grueso oscuro (`#241F21`), colores planos vibrantes, sombreado suave tipo cel-shading, borde blanco tipo sticker.
 
