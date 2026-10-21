@@ -16,10 +16,20 @@ export default function CalificarScreen() {
   const [estrellas, setEstrellas] = useState(0);
   const [comentario, setComentario] = useState("");
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function enviar() {
-    if (pedido) calificar(pedido.id, estrellas, comentario.trim());
-    setEnviado(true);
+  async function enviar() {
+    if (!pedido) {
+      setEnviado(true);
+      return;
+    }
+    setEnviando(true);
+    setError(null);
+    const mensaje = await calificar(pedido.id, estrellas, comentario.trim());
+    setEnviando(false);
+    if (mensaje) setError(mensaje);
+    else setEnviado(true);
   }
 
   if (enviado) {
@@ -48,7 +58,15 @@ export default function CalificarScreen() {
 
       <View className="flex-row justify-center mb-8">
         {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable key={n} onPress={() => setEstrellas(n)} hitSlop={6} className="mx-1">
+          <Pressable
+            key={n}
+            onPress={() => setEstrellas(n)}
+            hitSlop={6}
+            className="mx-1"
+            accessibilityRole="button"
+            accessibilityLabel={n === 1 ? "1 estrella" : `${n} estrellas`}
+            accessibilityState={{ selected: n <= estrellas }}
+          >
             <Ionicons
               name={n <= estrellas ? "star" : "star-outline"}
               size={36}
@@ -68,9 +86,11 @@ export default function CalificarScreen() {
         style={{ minHeight: 90, textAlignVertical: "top" }}
       />
 
+      {error && <Text className="font-body text-sm text-chili text-center mb-3">{error}</Text>}
+
       <BrandButton
-        label="Enviar calificación"
-        disabled={estrellas === 0}
+        label={enviando ? "Enviando..." : "Enviar calificación"}
+        disabled={estrellas === 0 || enviando}
         onPress={enviar}
       />
     </SafeAreaView>

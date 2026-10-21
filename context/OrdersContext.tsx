@@ -34,7 +34,8 @@ type OrdersContextValue = {
   recargar: () => Promise<void>;
   crear: (pedido: PedidoNuevo) => Promise<{ id: string | null; error: string | null }>;
   avanzar: (id: string, estado: EstadoPedido) => void;
-  calificar: (id: string, estrellas: number, comentario: string) => void;
+  // devuelve un mensaje para el usuario si no se pudo guardar
+  calificar: (id: string, estrellas: number, comentario: string) => Promise<string | null>;
   pedidoPorId: (id: string | undefined) => Pedido | undefined;
 };
 
@@ -96,21 +97,30 @@ function claveLocalDe(userId: string) {
 }
 
 async function subirPedidosLocales(userId: string) {
-  const guardado = await AsyncStorage.getItem(claveLocalDe(userId));
+  const clave = claveLocalDe(userId);
+  const guardado = await AsyncStorage.getItem(clave);
   if (!guardado) return;
-  const locales = JSON.parse(guardado) as Pedido[];
-  if (locales.length > 0) {
-    const filas = locales.map((p) => ({
-      ...aFila(p),
-      estado: p.estado,
-      calificacion: p.calificacion,
-      comentario: p.comentario,
-      creado_en: p.creadoEn,
-    }));
-    const { error } = await supabase.from("pedidos").insert(filas);
-    if (error) return; // se reintenta en la próxima carga
+  let locales: Pedido[];
+  try {
+    locales = JSON.parse(guardado) as Pedido[];
+  } catch {
+    // Copia corrupta: no hay nada recuperable y reintentar no la arregla.
+    await AsyncStorage.removeItem(clave);
+    return;
   }
-  await AsyncStorage.removeItem(claveLocalDe(userId));
+  // Se borra antes de subir: si la app se cierra justo después del insert,
+  // no queremos volver a subir los mismos pedidos en el próximo arranque.
+  await AsyncStorage.removeItem(clave);
+  if (!Array.isArray(locales) || locales.length === 0) return;
+  const filas = locales.map((p) => ({
+    ...aFila(p),
+    estado: p.estado,
+    calificacion: p.calificacion,
+    comentario: p.comentario,
+    creado_en: p.creadoEn,
+  }));
+  const { error } = await supabase.from("pedidos").insert(filas);
+  if (error) await AsyncStorage.setItem(clave, guardado); // se reintenta en la próxima carga
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null);
@@ -124,7 +134,12 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   // Igual que en CartContext: copia síncrona para que dos cambios seguidos
   // no se pisen antes del siguiente render.
   const actual = useRef<Pedido[]>([]);
-  const usuarioVigente = useRef<string | null>(null);
+  // Cada carga (o cambio de cuenta) sube este número; una respuesta que
+  // llega cuando ya hay otra más nueva en camino se descarta.
+  const cargaVigente = useRef(0);
+  // Pedidos creados mientras una carga estaba en vuelo: el SELECT pudo
+  // salir antes del insert y no traerlos.
+  const creadosDuranteCarga = useRef<Pedido[]>([]);
 
   function guardarEnMemoria(siguiente: Pedido[]) {
     actual.current = siguiente;
@@ -132,6 +147,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   }
 
   async function cargar(uid: string) {
+    const esta = ++cargaVigente.current;
+    creadosDuranteCarga.current = [];
     setCargando(true);
     setErrorCarga(null);
     await subirPedidosLocales(uid).catch(() => {});
@@ -139,19 +156,24 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       .from("pedidos")
       .select("*")
       .order("creado_en", { ascending: false });
-    if (usuarioVigente.current !== uid) return; // cambió de cuenta mientras cargaba
+    if (esta !== cargaVigente.current) return; // la cuenta o la carga ya cambió
     setCargando(false);
     if (error) {
       setErrorCarga(MENSAJE_SIN_CONEXION);
       return;
     }
-    guardarEnMemoria((data as FilaPedido[]).map(desdeFila));
+    const traidos = (data as FilaPedido[]).map(desdeFila);
+    const ids = new Set(traidos.map((p) => p.id));
+    const faltantes = creadosDuranteCarga.current.filter((p) => !ids.has(p.id));
+    creadosDuranteCarga.current = [];
+    guardarEnMemoria([...faltantes, ...traidos]);
   }
 
   useEffect(() => {
-    usuarioVigente.current = userId;
+    cargaVigente.current++;
     guardarEnMemoria([]);
     setErrorCarga(null);
+    setCargando(false);
     if (userId) cargar(userId);
   }, [userId]);
 
@@ -165,28 +187,43 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       return { id: null, error: "No se pudo enviar tu pedido. Revisa tu conexión e inténtalo de nuevo." };
     }
     const pedido = desdeFila(data as FilaPedido);
+    creadosDuranteCarga.current.push(pedido);
     guardarEnMemoria([pedido, ...actual.current]);
     return { id: pedido.id, error: null };
   }
 
-  // Estos dos cambios se ven al instante en la app y se guardan por detrás:
-  // si fallan, la próxima carga trae lo que de verdad quedó en el servidor.
+  // Estos dos cambios se ven al instante en la app y se guardan por detrás.
+  // Si el servidor los rechaza, se deshacen para que la pantalla no muestre
+  // algo que no quedó guardado.
   function cambiarLocal(id: string, cambios: Partial<Pedido>) {
     guardarEnMemoria(actual.current.map((p) => (p.id === id ? { ...p, ...cambios } : p)));
   }
 
-  function avanzar(id: string, estado: EstadoPedido) {
-    cambiarLocal(id, { estado });
-    supabase.from("pedidos").update({ estado }).eq("id", id).then(() => {});
+  async function guardarCambio(id: string, cambios: Partial<Pedido>, fila: Record<string, unknown>) {
+    const antes = actual.current.find((p) => p.id === id);
+    cambiarLocal(id, cambios);
+    const { error } = await supabase.from("pedidos").update(fila).eq("id", id);
+    if (!error) return true;
+    if (antes) {
+      const revertir = Object.fromEntries(
+        Object.keys(cambios).map((k) => [k, antes[k as keyof Pedido]])
+      ) as Partial<Pedido>;
+      cambiarLocal(id, revertir);
+    }
+    return false;
   }
 
-  function calificar(id: string, estrellas: number, comentario: string) {
-    cambiarLocal(id, { calificacion: estrellas, comentario });
-    supabase
-      .from("pedidos")
-      .update({ calificacion: estrellas, comentario })
-      .eq("id", id)
-      .then(() => {});
+  function avanzar(id: string, estado: EstadoPedido) {
+    guardarCambio(id, { estado }, { estado });
+  }
+
+  async function calificar(id: string, estrellas: number, comentario: string) {
+    const ok = await guardarCambio(
+      id,
+      { calificacion: estrellas, comentario },
+      { calificacion: estrellas, comentario }
+    );
+    return ok ? null : "No pudimos guardar tu calificación. Revisa tu internet e inténtalo de nuevo.";
   }
 
   function pedidoPorId(id: string | undefined) {
