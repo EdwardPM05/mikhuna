@@ -19,6 +19,16 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Carrito: ya no se pierden ingredientes al pedir un grupo
+- **Qué:** `agregar()` en `context/CartContext.tsx` comparaba contra el `negocioId` del último render. `pedirGrupo()`
+  (carrito de ingredientes y comprar por delivery) llama a `agregar()` en un bucle; si el carrito tenía algo de otra
+  tienda, **cada** llamada lo vaciaba y quedaba solo el último ingrediente. Además `reemplazado` se asignaba dentro del
+  updater de `setItems`, que corre después de devolverlo, así que el aviso "tu carrito era de otro negocio" de
+  `negocio/[id].tsx` podía no salir nunca. Ahora el estado del carrito es un solo objeto con una copia síncrona (`useRef`),
+  y la API de `useCart()` no cambia.
+- Comprobado: `npx tsc --noEmit` sin errores. **No comprobado en el navegador** (no hay tests en el repo todavía).
+- **Cómo regresar:** `git revert` del commit (solo toca `CartContext.tsx`).
+
 ### Modelo de Gemini configurable (`GEMINI_MODEL`)
 - **Qué:** `generar-plan` lee el modelo del secreto `GEMINI_MODEL`; si no está, sigue usando `gemini-2.5-flash` (sin
   cambio para el proyecto actual). Motivo: con una clave de Google AI Studio nueva, `gemini-2.5-flash` responde `404`

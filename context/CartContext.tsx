@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type ItemCarrito = { id: string; nombre: string; precio: number; cantidad: number };
 type ItemNuevo = { id: string; nombre: string; precio: number };
@@ -14,58 +14,71 @@ type CartContextValue = {
   vaciar: () => void;
 };
 
+type EstadoCarrito = { negocioId: string | null; items: ItemCarrito[] };
+
+const VACIO: EstadoCarrito = { negocioId: null, items: [] };
+
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [negocioId, setNegocioId] = useState<string | null>(null);
-  const [items, setItems] = useState<ItemCarrito[]>([]);
+  const [carrito, setCarrito] = useState<EstadoCarrito>(VACIO);
+  // Copia síncrona del estado: varias llamadas seguidas a agregar() (por ejemplo
+  // pedirGrupo, que agrega todos los ingredientes de una tienda en un bucle) tienen
+  // que ver lo que agregó la anterior, y `reemplazado` se tiene que saber al
+  // momento de devolverlo, no en el próximo render.
+  const actual = useRef<EstadoCarrito>(VACIO);
+
+  function guardar(siguiente: EstadoCarrito) {
+    actual.current = siguiente;
+    setCarrito(siguiente);
+  }
 
   function agregar(nId: string, item: ItemNuevo) {
-    let reemplazado = false;
-    setItems((prev) => {
-      if (negocioId !== null && negocioId !== nId) {
-        reemplazado = true;
-        return [{ ...item, cantidad: 1 }];
-      }
-      const existe = prev.find((i) => i.id === item.id);
-      if (existe) {
-        return prev.map((i) => (i.id === item.id ? { ...i, cantidad: i.cantidad + 1 } : i));
-      }
-      return [...prev, { ...item, cantidad: 1 }];
-    });
-    setNegocioId(nId);
+    const prev = actual.current;
+    const reemplazado = prev.negocioId !== null && prev.negocioId !== nId;
+    const base = reemplazado ? [] : prev.items;
+    const existe = base.find((i) => i.id === item.id);
+    const items = existe
+      ? base.map((i) => (i.id === item.id ? { ...i, cantidad: i.cantidad + 1 } : i))
+      : [...base, { ...item, cantidad: 1 }];
+    guardar({ negocioId: nId, items });
     return { reemplazado };
   }
 
   function quitar(id: string) {
-    setItems((prev) => {
-      const siguiente = prev
-        .map((i) => (i.id === id ? { ...i, cantidad: i.cantidad - 1 } : i))
-        .filter((i) => i.cantidad > 0);
-      if (siguiente.length === 0) setNegocioId(null);
-      return siguiente;
-    });
+    const items = actual.current.items
+      .map((i) => (i.id === id ? { ...i, cantidad: i.cantidad - 1 } : i))
+      .filter((i) => i.cantidad > 0);
+    guardar({ negocioId: items.length === 0 ? null : actual.current.negocioId, items });
   }
 
   function cantidadDe(id: string) {
-    return items.find((i) => i.id === id)?.cantidad ?? 0;
+    return carrito.items.find((i) => i.id === id)?.cantidad ?? 0;
   }
 
   function vaciar() {
-    setItems([]);
-    setNegocioId(null);
+    guardar(VACIO);
   }
 
   const total = useMemo(
-    () => items.reduce((suma, item) => suma + item.precio * item.cantidad, 0),
-    [items]
+    () => carrito.items.reduce((suma, item) => suma + item.precio * item.cantidad, 0),
+    [carrito.items]
   );
 
-  const cantidadTotal = useMemo(() => items.reduce((s, i) => s + i.cantidad, 0), [items]);
+  const cantidadTotal = useMemo(() => carrito.items.reduce((s, i) => s + i.cantidad, 0), [carrito.items]);
 
   return (
     <CartContext.Provider
-      value={{ negocioId, items, total, cantidadTotal, agregar, quitar, cantidadDe, vaciar }}
+      value={{
+        negocioId: carrito.negocioId,
+        items: carrito.items,
+        total,
+        cantidadTotal,
+        agregar,
+        quitar,
+        cantidadDe,
+        vaciar,
+      }}
     >
       {children}
     </CartContext.Provider>
