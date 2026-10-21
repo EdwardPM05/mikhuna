@@ -11,6 +11,8 @@ export default function ListaComprasScreen() {
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar"
           className="absolute top-4 right-4 z-10 active:opacity-60"
         >
           <Ionicons name="close" size={22} color="#241F21" />

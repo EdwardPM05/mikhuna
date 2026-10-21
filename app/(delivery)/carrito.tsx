@@ -27,7 +27,13 @@ export default function CarritoScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-4">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Text className="font-display-bold text-lg text-ink">Tu carrito</Text>
@@ -48,6 +54,8 @@ export default function CarritoScreen() {
             <View className="flex-row items-center mr-3">
               <Pressable
                 onPress={() => quitar(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Quitar uno de ${item.nombre}`}
                 className="bg-ink/10 rounded-full w-8 h-8 items-center justify-center active:opacity-70"
               >
                 <Ionicons name="remove" size={18} color="#241F21" />
@@ -55,6 +63,8 @@ export default function CarritoScreen() {
               <Text className="font-body-extrabold text-ink w-7 text-center">{item.cantidad}</Text>
               <Pressable
                 onPress={() => agregar(negocio.id, item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Agregar otro ${item.nombre}`}
                 className="bg-chili rounded-full w-8 h-8 items-center justify-center active:opacity-80"
               >
                 <Ionicons name="add" size={18} color="#FDF3E7" />

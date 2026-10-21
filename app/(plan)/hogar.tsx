@@ -24,6 +24,8 @@ export default function HogarScreen() {
         <View className="flex-row items-center">
           <Pressable
             onPress={() => cambiar(-1)}
+            accessibilityRole="button"
+            accessibilityLabel="Una persona menos"
             className="w-14 h-14 rounded-full border-2 border-ink/15 bg-white items-center justify-center active:opacity-60"
           >
             <Ionicons name="remove" size={26} color="#241F21" />
@@ -38,6 +40,8 @@ export default function HogarScreen() {
 
           <Pressable
             onPress={() => cambiar(1)}
+            accessibilityRole="button"
+            accessibilityLabel="Una persona más"
             className="w-14 h-14 rounded-full bg-chili items-center justify-center active:opacity-80"
           >
             <Ionicons name="add" size={26} color="#FDF3E7" />

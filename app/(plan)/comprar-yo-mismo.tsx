@@ -14,7 +14,13 @@ export default function ComprarYoMismoScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-2">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Text className="font-display-bold text-lg text-ink flex-1">Voy a comprarlo yo</Text>

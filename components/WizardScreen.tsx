@@ -51,7 +51,13 @@ export function WizardScreen({
     <SafeAreaView className="flex-1 bg-cream">
       <View className="px-6 pt-2">
         <View className="flex-row items-center">
-          <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            className="mr-3 active:opacity-60"
+            accessibilityRole="button"
+            accessibilityLabel="Atrás"
+          >
             <Ionicons name="arrow-back" size={24} color="#241F21" />
           </Pressable>
           <View className="flex-1 h-1.5 bg-ink/10 rounded-full overflow-hidden">

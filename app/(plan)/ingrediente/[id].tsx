@@ -35,7 +35,13 @@ export default function IngredienteScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-4">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Image source={ingrediente.icono} style={{ width: 36, height: 36, marginRight: 10 }} contentFit="contain" />

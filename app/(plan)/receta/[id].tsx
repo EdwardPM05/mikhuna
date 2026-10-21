@@ -41,6 +41,8 @@ export default function RecetaScreen() {
             <Pressable
               onPress={() => router.back()}
               hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Atrás"
               className="absolute top-4 left-6 w-9 h-9 rounded-full bg-black/30 items-center justify-center active:opacity-70"
             >
               <Ionicons name="arrow-back" size={20} color="#FDF3E7" />
@@ -65,7 +67,13 @@ export default function RecetaScreen() {
         ) : (
           <View className="px-6">
             <View className="flex-row items-center pt-2 pb-4">
-              <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+              <Pressable
+                onPress={() => router.back()}
+                hitSlop={10}
+                className="mr-3 active:opacity-60"
+                accessibilityRole="button"
+                accessibilityLabel="Atrás"
+              >
                 <Ionicons name="arrow-back" size={24} color="#241F21" />
               </Pressable>
               <Text className="font-display-bold text-lg text-ink flex-1">{receta.nombre}</Text>

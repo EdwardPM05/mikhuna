@@ -12,6 +12,9 @@ export function BrandButton({ label, onPress, variant = "primary", disabled = fa
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       style={{ opacity: disabled ? 0.35 : 1 }}
       className={
         isPrimary
