@@ -3,8 +3,9 @@
 ## 1. Onboarding y autenticación
 
 1. `app/index.tsx` revisa si hay sesión de Supabase (`AuthContext`).
-   - Sin sesión → `(auth)/login`.
-   - Con sesión → `(onboarding)/ubicacion`.
+   - Sin sesión → `(auth)/login` (o `(auth)/registro` desde "Regístrate").
+   - Con sesión y distrito ya elegido → `(tabs)` directo.
+   - Con sesión y sin distrito (primera vez) → `(onboarding)/ubicacion`.
 2. **`(onboarding)/ubicacion`** — el usuario elige su distrito (o usa su ubicación actual), para saber qué negocios mostrarle cerca.
 3. **`(onboarding)/modo`** — "¿Qué quieres hacer hoy?", la bifurcación central de la app:
    - **"Quiero planear mi semana"** → entra al Flujo A (`(plan)/negocio`).
@@ -52,4 +53,9 @@ Este flujo comparte `CartContext` y las pantallas de `(delivery)` con el Flujo A
 
 ## 4. Perfil y pedidos
 
-`(tabs)/pedidos` y `(tabs)/perfil` son las otras dos pestañas: historial de pedidos y datos de cuenta.
+- **`(tabs)/pedidos`** — arriba los pedidos en curso (chip de estado y barra de pasos, abren el seguimiento) y debajo los
+  entregados, con fecha, productos, total, estrellas o "Calificar" y "Volver a pedir" (rellena el carrito). La pestaña
+  muestra un contador cuando hay pedidos en curso.
+- **`(tabs)/perfil`** — nombre, correo, personas, presupuesto y número de pedidos; accesos para cambiar de distrito,
+  rehacer el plan y ver pedidos; restricciones elegidas; y "Cerrar sesión" (pide un segundo toque). Cerrar sesión
+  vacía el carrito pero el plan queda guardado para la próxima vez.

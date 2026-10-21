@@ -19,6 +19,28 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Ronda de mejoras de UI y flujo (11 commits, `0e3be8b`…`aeddfbc`)
+Todo lo de abajo se comprobó con `npx tsc --noEmit` y recorriendo la app en web (Chrome, 390×844): login, registro,
+Explorar, negocio → carrito → checkout → seguimiento → Pedidos, Perfil y recarga con el plan guardado.
+- **Saludo real** (`0e3be8b`): el home decía "Hola, Edward" a todos; ahora usa el nombre del registro.
+- **Pedidos de verdad** (`b5451f1`): nuevo `context/OrdersContext.tsx`. Confirmar en checkout guarda el pedido; el
+  seguimiento muestra el negocio real (antes siempre "Bodega Don José"), avanza el estado guardado, tiene botón de
+  cerrar y resumen; la calificación queda en el pedido.
+- **Pestaña Pedidos** (`d248791`): historial en curso / anteriores, "Calificar" y "Volver a pedir".
+- **Perfil** (`448d90b`): datos de la cuenta, accesos y **cerrar sesión** (antes no había forma de salir).
+- **Checkout** (`79dca26`): resumen del pedido, desglose subtotal + propina y aviso cuando falta la dirección.
+- **Explorar** (`367d5de`): buscador (nombre, tipo y productos), estado vacío y barra flotante del carrito.
+- **Pestañas** (`ccb0e15`, `aeddfbc`): contador de pedidos en curso, fuente de marca y etiquetas que ya no se cortan en web.
+- **Plan guardado** (`559fd7d`): el plan semanal sobrevive a recargar la app (antes se perdía).
+- **Entrada directa** (`8b7aca0`): quien ya eligió distrito entra a la app sin repetir el onboarding.
+- **Login y registro** (`7893a60`, `e703ff1`, `bac4d4d`): campos con ícono y ver/ocultar contraseña, errores en
+  español, teclado que no tapa los campos, registro que entra directo si Supabase no pide confirmar el correo, y el
+  auto-login de desarrollo ya no deja al usuario trabado en el login.
+- **Ojo:** pedidos y plan viven en el dispositivo (AsyncStorage), no en Supabase: otro celular no los ve. Pasarlos a
+  tablas es el siguiente paso natural.
+- **Cómo regresar:** `git revert` de cada commit, del más nuevo al más viejo. Lo guardado en AsyncStorage
+  (`mikhuna:plan:*`, `mikhuna:pedidos:*`) queda en el dispositivo, pero nada lo lee después del revert.
+
 ### Aviso de Expo `userInterfaceStyle` silenciado
 - **Qué:** `app.json` define `"userInterfaceStyle": "light"` también a nivel `expo` (antes solo en `ios` y `android`).
   Es el mismo valor, así que la app se ve igual; solo desaparece el aviso de la terminal. En `android/` (bare workflow)

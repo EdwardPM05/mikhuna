@@ -10,15 +10,16 @@ Todas las pantallas viven en `app/`, agrupadas por paréntesis (route groups) qu
 - **`(tabs)`** — las 4 pestañas principales una vez el usuario ya tiene cuenta y ubicación: Plan, Explorar, Pedidos, Perfil.
 - **`(delivery)`** — carrito, checkout y seguimiento de un pedido de delivery (usado tanto por Flujo A como Flujo B).
 
-`app/index.tsx` es el punto de entrada: decide si redirigir a `(auth)` o a `(onboarding)` según si hay sesión en `AuthContext`.
+`app/index.tsx` es el punto de entrada: sin sesión va a `(auth)`; con sesión espera a que cargue el plan guardado y va a `(tabs)` si ya hay distrito elegido, o a `(onboarding)` si es la primera vez.
 
 ## Estado global (`context/`)
 
 Tres contexts de React, sin librería externa de estado:
 
-- **`AuthContext`** — sesión de Supabase. En `__DEV__` auto-loguea con la cuenta de pruebas de `.env.local` (`EXPO_PUBLIC_DEV_EMAIL` / `EXPO_PUBLIC_DEV_PASSWORD`) para iterar más rápido; sin esas variables muestra el login normal. No corre en producción.
-- **`PlanWizardContext`** — todas las respuestas del wizard de Flujo A: distrito, negocio, días, presupuesto, antojos, restricciones, electrodomésticos, ingredientes marcados como comprados (`comprados`) y en qué tienda quiere comprar cada uno (`preferenciasCompra`).
+- **`AuthContext`** — sesión de Supabase. En `__DEV__` auto-loguea con la cuenta de pruebas de `.env.local` (`EXPO_PUBLIC_DEV_EMAIL` / `EXPO_PUBLIC_DEV_PASSWORD`) para iterar más rápido; sin esas variables muestra el login normal. No corre en producción. `loading` no termina hasta que se resuelve ese intento. Expone `nombre` (el del registro o, si falta, lo que va antes de la @ del correo) y traduce al español los errores de Supabase.
+- **`PlanWizardContext`** — todas las respuestas del wizard de Flujo A: distrito, negocio, días, presupuesto, antojos, restricciones, electrodomésticos, ingredientes marcados como comprados (`comprados`) y en qué tienda quiere comprar cada uno (`preferenciasCompra`). Se guarda por usuario en AsyncStorage (`mikhuna:plan:<userId>`) y se vuelve a leer al iniciar sesión; `listo` indica que ya se leyó.
 - **`CartContext`** — carrito de delivery, agnóstico de si el pedido viene de Flujo A (ingredientes) o Flujo B (platos de un negocio): cada ítem es autocontenido (`{ id, nombre, precio, cantidad }`), sin necesitar volver a buscar en un catálogo.
+- **`OrdersContext`** — historial de pedidos del usuario: checkout crea el pedido, `seguimiento` avanza su `estado` (`confirmado` → `preparando` → `en-camino` → `entregado`) y `calificar` guarda las estrellas. Mientras no exista una tabla en Supabase vive en AsyncStorage (`mikhuna:pedidos:<userId>`), así que es por dispositivo.
 
 ## Capa de datos (`lib/catalogo.ts`)
 
