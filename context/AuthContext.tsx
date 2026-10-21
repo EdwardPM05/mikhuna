@@ -8,7 +8,12 @@ type AuthContextValue = {
   // nombre que el usuario dio al registrarse; si no lo tiene, la parte del correo antes de la @
   nombre: string;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, nombre: string) => Promise<{ error: string | null }>;
+  // conSesion: Supabase ya inició sesión (el proyecto no pide confirmar el correo)
+  signUp: (
+    email: string,
+    password: string,
+    nombre: string
+  ) => Promise<{ error: string | null; conSesion: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -55,12 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signUp(email: string, password: string, nombre: string) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { nombre } },
     });
-    return { error: error ? mensajeDeError(error.message) : null };
+    return { error: error ? mensajeDeError(error.message) : null, conSesion: !!data.session };
   }
 
   async function signOut() {

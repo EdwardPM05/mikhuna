@@ -25,10 +25,14 @@ export default function RegistroScreen() {
       return;
     }
     setEnviando(true);
-    const { error } = await signUp(email.trim(), password, nombre.trim());
+    const { error, conSesion } = await signUp(email.trim(), password, nombre.trim());
     setEnviando(false);
     if (error) {
       setError(error);
+      return;
+    }
+    if (conSesion) {
+      router.replace("/"); // sin confirmación por correo: entra directo al onboarding
       return;
     }
     setCreado(true);
