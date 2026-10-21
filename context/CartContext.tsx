@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useAuth } from "./AuthContext";
 
 export type ItemCarrito = { id: string; nombre: string; precio: number; cantidad: number };
 type ItemNuevo = { id: string; nombre: string; precio: number };
@@ -27,11 +28,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // que ver lo que agregó la anterior, y `reemplazado` se tiene que saber al
   // momento de devolverlo, no en el próximo render.
   const actual = useRef<EstadoCarrito>(VACIO);
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
 
   function guardar(siguiente: EstadoCarrito) {
     actual.current = siguiente;
     setCarrito(siguiente);
   }
+
+  // El carrito es de quien lo armó: al cerrar sesión (o si la sesión vence)
+  // no tiene que verlo la siguiente cuenta que entre.
+  useEffect(() => {
+    guardar(VACIO);
+  }, [userId]);
 
   function agregar(nId: string, item: ItemNuevo) {
     const prev = actual.current;
