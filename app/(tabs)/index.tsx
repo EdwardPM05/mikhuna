@@ -81,7 +81,9 @@ export default function PlanScreen() {
   const plan = generarPlanSemana(data.dias, data.antojos);
   const gastoSemana = plan.reduce((s, p) => s + p.receta.precio, 0);
   const restante = Math.max(0, data.presupuesto - gastoSemana);
-  const pct = Math.min(100, (gastoSemana / data.presupuesto) * 100);
+  // Un plan viejo puede no traer presupuesto: sin él, cualquier gasto ya lo supera.
+  const pct =
+    data.presupuesto > 0 ? Math.min(100, (gastoSemana / data.presupuesto) * 100) : gastoSemana > 0 ? 100 : 0;
   const misionProgreso = Math.min(data.comprados.length, META_MISION);
   const misionCompleta = misionProgreso >= META_MISION;
   const colorBarra = colorSegunGasto(pct);
