@@ -71,10 +71,15 @@ Wizard (quién eres + qué puedes comer)
 - **Costo:** mandar 40 candidatas resumidas son pocos tokens; cabe holgado en la capa gratis de Gemini. Falta un límite
   de llamadas por usuario (ver IA.md).
 
-### ¿Qué quiere decir "modo híbrido"?
+### Cómo la describimos: IA basada en el dataset
 
-En el grupo se habló de que la IA funcione en "modo híbrido". La palabra se usa para tres cosas distintas; esto es lo
-que significa cada una para Mikhuna:
+Al principio llamamos a esto "modo híbrido", pero confundía. Edward lo resumió mejor y así lo decimos desde ahora:
+**la app se guía del dataset**. Cuando pides algo, la IA recomienda a partir de recetas reales extraídas de
+distintas fuentes, y sus recomendaciones son coherentes con los ingredientes que esas recetas ya usan: la semana
+reusa ingredientes entre días y cada receta muestra otras parecidas por lo que llevan. Las reglas siguen ahí, pero
+como filtro de seguridad y respaldo, no como "la otra mitad" de la IA.
+
+Para no confundirnos, esto es lo que significaba cada uso de "híbrido":
 
 | Significado | Qué es | ¿Lo usamos? |
 |---|---|---|
@@ -82,7 +87,7 @@ que significa cada una para Mikhuna:
 | **Búsqueda híbrida** | Buscar recetas por palabras ("pollo", "Arequipa") y por significado con vectores (pgvector: "algo ligero para la noche"). | **Sí, más adelante**, para encontrar las candidatas del paso 1 en el dataset. |
 | **Celular + nube** | Un modelo chico dentro del teléfono (Gemini Nano) para lo simple y Gemini en la nube para lo difícil. | **No.** Hoy solo corre en algunos celulares de gama alta. |
 
-Cuando digamos "modo híbrido" en el proyecto, nos referimos al primero.
+Ya no usamos la palabra: decimos "IA basada en el dataset".
 
 ## Qué construir, en orden
 

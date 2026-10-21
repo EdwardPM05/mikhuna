@@ -67,7 +67,9 @@ toque**.
 |---|---|
 | 🙋 **"¿Quién eres?"** | El plan empieza por ti: tu perfil, la comida que extrañas, tu objetivo y tu nivel en la cocina. |
 | 🗓️ **Plan semanal** | Wizard de 8 pasos: quién eres, tienda, personas, días, presupuesto, antojos, restricciones y cocina. |
-| 🤖 **Elegido con IA** | Gemini elige entre recetas reales y te dice por qué cada una te va. Nunca inventa platos ni precios. |
+| 🤖 **Elegido con IA** | Gemini elige entre ~17 800 recetas reales del dataset y te dice por qué cada una te va. Nunca inventa platos ni precios. |
+| ♻️ **Aprovecha lo que compras** | La semana prefiere recetas que reusan ingredientes de otros días. |
+| 🔗 **Recetas parecidas** | En cada receta, otras recetas reales con los mismos ingredientes que tú puedes comer. |
 | 🥗 **Respeta lo que comes** | Vegano, vegetariano, pescetariano, sin gluten o sin lactosa: lo que no puedes comer nunca aparece. |
 | 🍳 **Con lo que tienes** | Si no tienes horno o licuadora, no te toca una receta que los necesite. |
 | 💰 **Billetera** | Cuánto te queda de presupuesto, con una barra que pasa de verde a rojo. |
@@ -89,22 +91,32 @@ toque**.
 
 ## 🤖 Cómo funciona la IA
 
-Usamos un **modo híbrido: reglas + IA**. Lo que no se negocia lo decide el código; lo que es criterio, la IA.
+La IA **se basa en el dataset**: ~17 800 recetas reales extraídas de distintos sitios de cocina. No inventa platos:
+recomienda a partir de esas recetas, y sus recomendaciones son coherentes con los ingredientes que cada receta ya usa.
 
 ```
 Tus respuestas del wizard
         │
         ▼
-1. Reglas (sin IA)        sacan toda receta que choque con tus restricciones o tu cocina
-        │                 y ordenan el resto según quién eres → hasta 20 candidatas
+1. Dataset (Supabase)     de ~17 800 recetas reales trae las que puedes comer y preparar
+        │                 con lo que tienes en tu cocina → ~80, mezcladas para variar
         ▼
-2. Gemini                 elige una receta por día SOLO de esa lista (no puede inventar)
-        │                 y escribe en una frase por qué te sirve
+2. Reglas                 las revisan otra vez y ordenan según quién eres → las 20 mejores
         ▼
-3. La app                 pone precios, cantidades y dónde comprar, desde el catálogo real
+3. Gemini                 elige una por día SOLO de esa lista, prefiere las que reusan
+        │                 ingredientes de otros días y te dice por qué cada una te sirve
+        ▼
+4. La app                 pone precios, cantidades y dónde comprar, desde el catálogo real
         │
-        └─ ¿Gemini tarda, falla o no hay internet? Las mismas reglas arman el plan igual.
+        └─ ¿Gemini tarda, falla o no hay internet? Las reglas arman el plan igual.
 ```
+
+**Coherente con los ingredientes**, de dos formas:
+
+- **Tu semana aprovecha lo que compras.** Si el lunes lleva pollo y palta, otro día te toca una receta que también
+  los usa, y te lo dice ("Aprovecha el pollo del lunes"). Compras una vez y no se te malogra nada.
+- **Recetas parecidas.** Cada receta te muestra otras recetas reales del dataset con los mismos ingredientes,
+  solo de las que tú puedes comer.
 
 - **Nunca se salta una restricción:** `npm test` prueba todas las combinaciones de restricciones, cocinas y perfiles.
 - **Rápido:** le pedimos el plan a Gemini de tres formas a la vez y usamos la primera que llega (~5 s).
@@ -202,7 +214,7 @@ docs/                   documentación
 <table>
   <tr>
     <td align="center"><img src="src/assets/mascots/papi_papa.png" width="70" alt="" /><br /><b>Hubert Hilario Gomez</b></td>
-    <td align="center"><img src="src/assets/mascots/choclito.png" width="70" alt="" /><br /><b>Abner Gonzales Alcarraz</b></td>
+    <td align="center"><a href="https://github.com/AbnerGA7"><img src="https://github.com/AbnerGA7.png" width="70" alt="" /><br /><b>Abner Gonzales Alcarraz</b></a></td>
     <td align="center"><img src="src/assets/mascots/cuy_delivery.png" width="64" alt="" /><br /><b>Jesus Pezo Ramirez</b></td>
     <td align="center"><a href="https://github.com/EdwardPM05"><img src="https://github.com/EdwardPM05.png" width="70" alt="" /><br /><b>Edward Pittman Medina</b></a></td>
   </tr>
