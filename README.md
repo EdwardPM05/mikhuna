@@ -1,65 +1,155 @@
-# Mikhuna
+<div align="center">
 
-Mikhuna es una app de planificación de comidas y delivery para el mercado peruano. Le ayuda al usuario a armar su semana de comidas según lo que se le antoja y lo que tiene en casa, comparar precios de ingredientes entre varias tiendas, y pedir delivery inmediato cuando no quiere cocinar.
+<img src="src/assets/images/logo_wordmark.png" alt="Mikhuna" width="300" />
 
-"Mikhuna" viene del quechua y significa "comida".
+### Planea tu semana, compra en tu barrio y pide cuando no quieras cocinar 🥔🌽🐹
 
-## Stack
+<sub>*Mikhuna* viene del quechua y significa **"comida"**.</sub>
 
-- **Expo SDK 57** (bare workflow, `android/` committeado)
-- **expo-router** — ruteo por archivos, con grupos de rutas
-- **NativeWind v4** (Tailwind para React Native)
-- **Supabase** — auth y base de datos (solo `anon key` en el cliente)
-- **React Context** — estado global (sin Redux/Zustand)
-- **TypeScript**
+<br />
 
-## Puesta en marcha
+![Expo](https://img.shields.io/badge/Expo-SDK%2057-241F21?style=for-the-badge&logo=expo&logoColor=FDF3E7)
+![React Native](https://img.shields.io/badge/React%20Native-0.86-E5131B?style=for-the-badge&logo=react&logoColor=FDF3E7)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-7A1220?style=for-the-badge&logo=typescript&logoColor=FDF3E7)
+![Supabase](https://img.shields.io/badge/Supabase-auth%20%2B%20db-F7941D?style=for-the-badge&logo=supabase&logoColor=241F21)
+![Gemini](https://img.shields.io/badge/IA-Gemini-FFC993?style=for-the-badge&logo=googlegemini&logoColor=241F21)
+
+</div>
+
+---
+
+## 🍲 ¿Qué es Mikhuna?
+
+Una app peruana de **planificación de comidas y delivery**. Le dices qué se te antoja, para cuántos cocinas, cuánta
+plata tienes para la semana y qué hay en tu cocina, y Mikhuna te arma el menú. Después compara los precios de los
+ingredientes entre bodegas, mercados y supermercados, y si un día no tienes ganas de cocinar, pides algo al toque.
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="src/assets/mascots/papi_papa_saludo.png" width="110" alt="Papi Papa" /><br />
+      <b>Papi Papa</b><br />
+      <sub>Te arma el plan de la semana</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="src/assets/mascots/choclito.png" width="110" alt="Choclito" /><br />
+      <b>Choclito</b><br />
+      <sub>Te lleva a explorar negocios del barrio</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="src/assets/mascots/cuy_delivery.png" width="100" alt="Cuy Delivery" /><br />
+      <b>Cuy Delivery</b><br />
+      <sub>Te trae el pedido hasta tu puerta</sub>
+    </td>
+  </tr>
+</table>
+
+## ✨ Lo que puedes hacer
+
+| | |
+|---|---|
+| 🗓️ **Plan semanal** | Wizard de 7 pasos: tienda, personas, días, presupuesto, antojos, restricciones y electrodomésticos. |
+| 🤖 **Recetas con IA** | Gemini propone el menú desde una Edge Function de Supabase. |
+| 💰 **Billetera** | Cuánto te queda de presupuesto, con una barra que pasa de verde a rojo. |
+| 🛒 **Lista de compras** | Compara el precio de cada ingrediente entre tiendas o márcalo como comprado. |
+| 🔎 **Explorar** | Busca negocios o productos ("pollo" encuentra el mercado que lo vende) y filtra por categoría. |
+| 🛵 **Delivery** | Carrito → checkout → seguimiento en vivo con el cuy → calificación. |
+| 📦 **Tus pedidos** | Historial, seguimiento de lo que está en camino y "Volver a pedir" con un toque. |
+| ☁️ **En la nube** | Tu plan y tus pedidos se guardan en Supabase: cambias de celular y siguen ahí. |
+
+## 🚀 Arráncalo en 2 minutos
 
 ```bash
 npm install
-npx expo start --web      # o sin --web para abrir en Expo Go / emulador
+npx expo start --web      # o sin --web para Expo Go / emulador
 ```
 
-Variables de entorno en `.env.local` (no se sube a git):
+Crea un `.env.local` (no se sube a git):
 
-```
+```bash
 EXPO_PUBLIC_SUPABASE_URL=...
 EXPO_PUBLIC_SUPABASE_ANON_KEY=...
-# opcional: inicio de sesión automático en desarrollo, con una cuenta de pruebas
+
+# opcional: entra solo en desarrollo con una cuenta de pruebas
 EXPO_PUBLIC_DEV_EMAIL=...
 EXPO_PUBLIC_DEV_PASSWORD=...
 ```
 
-Para verlo en el navegador con tamaño de celular, y qué hacer si el proyecto de Supabase está pausado, ver [docs/LOCALHOST.md](docs/LOCALHOST.md).
+¿Primera vez con la base de datos? Crea las tablas:
 
-Para generar el APK de Android, ver [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md).
+```bash
+npx supabase link --project-ref lvkweyiwzkqtojlylinc
+npx supabase db push
+```
 
-## Documentación
+> 💡 Para verlo con tamaño de celular en el navegador, o si Supabase está pausado, mira
+> [docs/LOCALHOST.md](docs/LOCALHOST.md). Para sacar el APK de Android:
+> [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md).
 
-- [docs/BRANDING.md](docs/BRANDING.md) — identidad visual, colores, tipografía, mascotas, tono de voz.
-- [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) — estructura de carpetas, rutas, contexts, capa de datos.
-- [docs/FLUJOS.md](docs/FLUJOS.md) — onboarding, autenticación, Flujo A (plan semanal) y Flujo B (delivery inmediato), lista de compras.
-- [docs/IA.md](docs/IA.md) — generación de planes con Gemini vía Supabase Edge Function.
-- [docs/DATASET.md](docs/DATASET.md) — dataset de recetas: fuentes, limpieza, cantidades normalizadas y tabla de peso por unidad.
-- [docs/CHANGELOG.md](docs/CHANGELOG.md) — registro de cambios por commit, con lo aprendido en cada uno.
-- [docs/LOCALHOST.md](docs/LOCALHOST.md) — cómo correr la app en web, verla como celular y problemas conocidos.
-- [docs/COMPILACION_APK_ANDROID.md](docs/COMPILACION_APK_ANDROID.md) — cómo generar un APK de prueba localmente.
+## 🎨 La marca
 
-## Estructura rápida
+| Color | Hex | Para qué |
+|---|---|---|
+| ![](https://img.shields.io/badge/-%20%20%20%20-E5131B?style=flat-square) **chili** | `#E5131B` | Acciones, precios, botones |
+| ![](https://img.shields.io/badge/-%20%20%20%20-F7941D?style=flat-square) **mango** | `#F7941D` | Estados, badges, íconos |
+| ![](https://img.shields.io/badge/-%20%20%20%20-FFC993?style=flat-square) **peach** | `#FFC993` | Chips y resaltados suaves |
+| ![](https://img.shields.io/badge/-%20%20%20%20-FDF3E7?style=flat-square) **cream** | `#FDF3E7` | Fondo de toda la app |
+| ![](https://img.shields.io/badge/-%20%20%20%20-7A1220?style=flat-square) **maroon** | `#7A1220` | Texto sobre fondos claros |
+| ![](https://img.shields.io/badge/-%20%20%20%20-241F21?style=flat-square) **ink** | `#241F21` | Texto y contornos |
+
+Títulos en **Baloo 2**, textos en **Nunito Sans**. Todo el detalle está en [docs/BRANDING.md](docs/BRANDING.md).
+
+## 🧰 Stack
+
+- **Expo SDK 57** (bare workflow, `android/` en el repo) + **expo-router** con grupos de rutas
+- **NativeWind v4** — Tailwind para React Native
+- **Supabase** — auth, tablas `planes` y `pedidos` con RLS, y la Edge Function `generar-plan` (solo `anon key` en el cliente)
+- **React Context** para el estado global (sin Redux ni Zustand)
+- **TypeScript** de punta a punta
+
+## 🗂️ Cómo está armado
 
 ```
 app/            pantallas (expo-router, agrupadas por flujo)
-components/     componentes reutilizables (WizardScreen, BrandButton, KitchenScene)
-context/        estado global (Auth, PlanWizard, Cart)
-lib/            catálogo de datos (negocios, ingredientes, recetas), theme, cliente de Supabase
+components/     piezas reutilizables (WizardScreen, BrandButton, CampoTexto, KitchenScene)
+context/        estado global (Auth, PlanWizard, Cart, Orders)
+lib/            catálogo (negocios, ingredientes, recetas), theme, cliente de Supabase
 src/assets/     arte de marca: mascotas, íconos, fondos de cocina, fotos de platos
-supabase/       Edge Function `generar-plan` (Deno + Gemini)
+supabase/       migraciones SQL y la Edge Function `generar-plan` (Deno + Gemini)
 scripts/        pipeline en Python del dataset de recetas y su visor HTML
-android/        proyecto nativo (bare workflow)
-docs/           documentación del proyecto
+android/        proyecto nativo
+docs/           documentación
 ```
 
-## Contribuidores
+## 📚 Documentación
 
-- [EdwardPM05](https://github.com/EdwardPM05) — autor
-- Abner Gonzales — contribuidor
+| Doc | De qué va |
+|---|---|
+| [BRANDING](docs/BRANDING.md) | Colores, tipografía, mascotas y tono de voz |
+| [ARQUITECTURA](docs/ARQUITECTURA.md) | Carpetas, rutas, contexts y datos |
+| [FLUJOS](docs/FLUJOS.md) | Onboarding, plan semanal, delivery, pedidos y perfil |
+| [IA](docs/IA.md) | Planes con Gemini vía Supabase Edge Function |
+| [DATASET](docs/DATASET.md) | Dataset de recetas: fuentes, limpieza y cantidades |
+| [LOCALHOST](docs/LOCALHOST.md) | Correr en web, verlo como celular y problemas conocidos |
+| [COMPILACION_APK_ANDROID](docs/COMPILACION_APK_ANDROID.md) | Generar un APK de prueba |
+| [CHANGELOG](docs/CHANGELOG.md) | Qué cambió en cada commit y cómo regresarlo |
+
+## 🤝 Equipo
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/EdwardPM05"><img src="https://github.com/EdwardPM05.png" width="80" alt="EdwardPM05" /><br /><b>EdwardPM05</b></a><br />
+      <sub>Autor</sub>
+    </td>
+    <td align="center">
+      <img src="src/assets/mascots/papi_papa.png" width="80" alt="" /><br /><b>Abner Gonzales</b><br />
+      <sub>Contribuidor</sub>
+    </td>
+  </tr>
+</table>
+
+<div align="center">
+<br />
+<sub>Hecho en Perú con harto ají 🌶️</sub>
+</div>
