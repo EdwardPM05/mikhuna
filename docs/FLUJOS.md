@@ -24,15 +24,17 @@
      provider"): el correo llega con un enlace y no con código, y además solo se envía a los miembros del equipo.
      Con eso el registro funciona igual (abrir el enlace confirma la cuenta), pero "Olvidé mi contraseña" no.
 
-     Configuración con Gmail:
-     1. Activar la verificación en 2 pasos de la cuenta de Google y crear una contraseña de aplicación en
-        https://myaccount.google.com/apppasswords.
-     2. Poner en `.env.local` `SMTP_GMAIL_USER=...@gmail.com` y `SMTP_GMAIL_APP_PASSWORD=...` (la de aplicación).
-     3. Correr `scripts/supabase/aplicar-plantillas-correo.ps1`: si el proyecto no tiene SMTP, lo configura con esos
-        datos (`smtp.gmail.com`, puerto `465`, remitente "Mikhuna") y sube las plantillas en el mismo paso.
-        También se puede configurar a mano en Authentication → Emails → SMTP Settings.
+     **Configuración actual: Resend** con el dominio `abnergonzales.dev` (verificado en Resend; sus registros DNS
+     están en Vercel). Los correos salen de `no-reply@abnergonzales.dev` como "Mikhuna".
+     1. En `.env.local`: `RESEND_API_KEY=re_...` (API key con permiso de envío) y
+        `SMTP_REMITENTE=no-reply@abnergonzales.dev`.
+     2. Correr `scripts/supabase/aplicar-plantillas-correo.ps1`: configura `smtp.resend.com` (puerto `465`, usuario
+        `resend`) y sube las plantillas en el mismo paso.
 
-     Gmail permite unos 500 envíos al día; Supabase además limita los correos por hora (Authentication → Rate Limits).
+     El script también acepta Gmail (`SMTP_GMAIL_USER` y `SMTP_GMAIL_APP_PASSWORD`, una contraseña de aplicación de
+     https://myaccount.google.com/apppasswords) si alguna vez se quiere volver a eso. El plan gratis de Resend da
+     100 correos al día; Supabase además limita los correos por hora (Authentication → Rate Limits). El código que llega
+     es de 8 dígitos y vence en 1 hora.
 2. **`(onboarding)/ubicacion`** — el usuario elige su distrito (o usa su ubicación actual), para saber qué negocios mostrarle cerca.
 3. **`(onboarding)/modo`** — "¿Qué quieres hacer hoy?", la bifurcación central de la app:
    - **"Quiero planear mi semana"** → entra al Flujo A (`(plan)/negocio`).
