@@ -25,8 +25,8 @@ export function BrandButton({ label, onPress, variant = "primary", disabled = fa
       <Text
         className={
           isPrimary
-            ? "text-cream font-display-bold text-base"
-            : "text-chili font-display-bold text-base"
+            ? "text-cream font-display-bold text-base text-center"
+            : "text-chili font-display-bold text-base text-center"
         }
       >
         {label}
