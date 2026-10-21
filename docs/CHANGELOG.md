@@ -19,6 +19,14 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Credenciales de prueba fuera del código
+- **Qué:** `context/AuthContext.tsx` ya no tiene un correo y una contraseña escritos: `DEV_AUTO_LOGIN` lee
+  `EXPO_PUBLIC_DEV_EMAIL` y `EXPO_PUBLIC_DEV_PASSWORD` de `.env.local`. Sin esas variables no intenta el auto-login y
+  muestra el login normal. `README.md`, `LOCALHOST.md` y `ARQUITECTURA.md` explican las variables.
+- **Ojo:** la contraseña anterior sigue en el historial de git (repo público); hay que cambiarla en Supabase.
+- Comprobado: `npx tsc --noEmit` sin errores.
+- **Cómo regresar:** `git revert` del commit.
+
 ### Carrito: ya no se pierden ingredientes al pedir un grupo
 - **Qué:** `agregar()` en `context/CartContext.tsx` comparaba contra el `negocioId` del último render. `pedirGrupo()`
   (carrito de ingredientes y comprar por delivery) llama a `agregar()` en un bucle; si el carrito tenía algo de otra
@@ -165,8 +173,8 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## Pendiente conocido
 - **Reactivar el proyecto de Supabase** si figura `INACTIVE` (ver [LOCALHOST.md](LOCALHOST.md) §0).
-- **Credenciales de prueba en el código:** `context/AuthContext.tsx` (constante `DEV_AUTO_LOGIN`) tiene un correo y una
-  contraseña escritos, y ese archivo ya está en GitHub. Moverlos a variables de entorno y cambiar esa contraseña.
+- **Cambiar la contraseña de la cuenta que estaba en `AuthContext.tsx`:** ya no está en el código (ver 20 oct 2026), pero
+  sigue en el historial público de git.
 - **Aviso de Expo:** falta `userInterfaceStyle` a nivel `expo` en `app.json` (solo está en `ios` y `android`).
 - Cargar el dataset a Supabase (con pgvector) tras revisarlo.
 - Conectar `generarPlanConIA()` al wizard, con caché y respaldo.

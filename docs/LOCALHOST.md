@@ -57,6 +57,10 @@ mano (nunca por git ni por chat sin cifrar). Expo lo carga solo: al arrancar la 
 ```
 EXPO_PUBLIC_SUPABASE_URL
 EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+# opcionales, solo para el inicio de sesión automático en desarrollo (§5)
+EXPO_PUBLIC_DEV_EMAIL
+EXPO_PUBLIC_DEV_PASSWORD
 ```
 
 Solo van la URL y la clave pública (`anon`). La clave de Gemini **no está en el cliente**: es un secreto del proyecto de
@@ -144,8 +148,9 @@ Tamaños útiles: **375 × 812** (iPhone clásico), **390 × 844** (iPhone 14/15
 
 En desarrollo (`__DEV__`), `context/AuthContext.tsx` intenta iniciar sesión solo con una cuenta de prueba para no tener
 que escribir los datos en cada recarga. Si falla (sin red o proyecto pausado), cae al login normal. En un build de
-producción no corre. **Las credenciales de esa cuenta están escritas en el código y no se repiten acá**; moverlas a
-variables de entorno está pendiente (ver [CHANGELOG.md](CHANGELOG.md)).
+producción no corre. Las credenciales se leen de `EXPO_PUBLIC_DEV_EMAIL` y `EXPO_PUBLIC_DEV_PASSWORD` en `.env.local`;
+si no están, no intenta nada y muestra el login normal. Usar una cuenta solo de pruebas, nunca una personal: las variables
+`EXPO_PUBLIC_*` quedan dentro del bundle de desarrollo.
 
 ---
 

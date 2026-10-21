@@ -16,7 +16,7 @@ Todas las pantallas viven en `app/`, agrupadas por paréntesis (route groups) qu
 
 Tres contexts de React, sin librería externa de estado:
 
-- **`AuthContext`** — sesión de Supabase. En `__DEV__` auto-loguea con credenciales de prueba para iterar más rápido (no corre en producción).
+- **`AuthContext`** — sesión de Supabase. En `__DEV__` auto-loguea con la cuenta de pruebas de `.env.local` (`EXPO_PUBLIC_DEV_EMAIL` / `EXPO_PUBLIC_DEV_PASSWORD`) para iterar más rápido; sin esas variables muestra el login normal. No corre en producción.
 - **`PlanWizardContext`** — todas las respuestas del wizard de Flujo A: distrito, negocio, días, presupuesto, antojos, restricciones, electrodomésticos, ingredientes marcados como comprados (`comprados`) y en qué tienda quiere comprar cada uno (`preferenciasCompra`).
 - **`CartContext`** — carrito de delivery, agnóstico de si el pedido viene de Flujo A (ingredientes) o Flujo B (platos de un negocio): cada ítem es autocontenido (`{ id, nombre, precio, cantidad }`), sin necesitar volver a buscar en un catálogo.
 

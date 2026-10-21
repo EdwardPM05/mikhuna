@@ -14,8 +14,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Solo en desarrollo: evita tener que loguearse a mano en cada recarga
 // mientras se prueba la app. No corre en un build de producción (__DEV__
-// es false ahí). Quitar cuando ya no haga falta.
-const DEV_AUTO_LOGIN = { email: "epittman341@gmail.com", password: "123456" };
+// es false ahí). Las credenciales vienen de .env.local (no se suben a git);
+// si no están, se salta el auto-login y se muestra el login normal.
+const DEV_AUTO_LOGIN = {
+  email: process.env.EXPO_PUBLIC_DEV_EMAIL ?? "",
+  password: process.env.EXPO_PUBLIC_DEV_PASSWORD ?? "",
+};
+const HAY_AUTO_LOGIN = __DEV__ && DEV_AUTO_LOGIN.email !== "" && DEV_AUTO_LOGIN.password !== "";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -23,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session && __DEV__) {
+      if (!data.session && HAY_AUTO_LOGIN) {
         const { error } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
         if (error) {
           setLoading(false); // credenciales de dev inválidas o sin red: cae al login normal
