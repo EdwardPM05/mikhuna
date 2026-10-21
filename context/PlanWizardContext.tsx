@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
 export type ListaPlan =
@@ -52,9 +53,24 @@ type PlanWizardValue = {
 
 const PlanWizardContext = createContext<PlanWizardValue | null>(null);
 
+// Copia local del plan: sirve para abrir rápido y sin internet, y es de
+// donde se sube el plan la primera vez (antes solo existía esta copia).
 function claveDe(userId: string) {
   return `mikhuna:plan:${userId}`;
 }
+
+// Se mezcla con INICIAL por si el plan se guardó con una versión que no
+// tenía algún campo nuevo.
+function completar(guardado: Partial<PlanData>): PlanData {
+  return { ...INICIAL, ...guardado };
+}
+
+async function leerLocal(userId: string) {
+  const guardado = await AsyncStorage.getItem(claveDe(userId)).catch(() => null);
+  return guardado ? completar(JSON.parse(guardado) as Partial<PlanData>) : null;
+}
+
+const ESPERA_GUARDADO_MS = 800;
 
 export function PlanWizardProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -64,23 +80,35 @@ export function PlanWizardProvider({ children }: { children: ReactNode }) {
   // el usuario actual, así no se escribe INICIAL encima del plan guardado
   // antes de terminar de leerlo.
   const [duenio, setDuenio] = useState<string | null>(null);
+  // Solo se escribe en Supabase si se pudo leer de ahí: sin conexión, un plan
+  // viejo del celular no debe pisar uno más nuevo hecho en otro dispositivo.
+  const [remotoOk, setRemotoOk] = useState(false);
 
   useEffect(() => {
     setData(INICIAL);
     setDuenio(null);
+    setRemotoOk(false);
     if (!userId) return;
     let vigente = true;
-    AsyncStorage.getItem(claveDe(userId))
-      .then((guardado) => {
-        if (!vigente) return;
-        // Se mezcla con INICIAL por si el plan se guardó con una versión que
-        // no tenía algún campo nuevo.
-        if (guardado) setData({ ...INICIAL, ...(JSON.parse(guardado) as Partial<PlanData>) });
-      })
-      .catch(() => {}) // ilegible: se empieza de cero
-      .finally(() => {
-        if (vigente) setDuenio(userId);
-      });
+    (async () => {
+      const { data: fila, error } = await supabase
+        .from("planes")
+        .select("datos")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const local = await leerLocal(userId);
+      if (!vigente) return;
+      if (error) {
+        if (local) setData(local);
+      } else {
+        // Sin fila en Supabase todavía: se usa (y se sube) la copia local.
+        const remoto = fila ? completar(fila.datos as Partial<PlanData>) : null;
+        const elegido = remoto ?? local;
+        if (elegido) setData(elegido);
+        setRemotoOk(true);
+      }
+      setDuenio(userId);
+    })();
     return () => {
       vigente = false;
     };
@@ -89,7 +117,17 @@ export function PlanWizardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId || duenio !== userId) return;
     AsyncStorage.setItem(claveDe(userId), JSON.stringify(data)).catch(() => {});
-  }, [data, duenio, userId]);
+    if (!remotoOk) return;
+    // Los toggles del wizard cambian el plan muchas veces seguidas: se sube
+    // cuando el usuario deja de tocar por un momento.
+    const t = setTimeout(() => {
+      supabase
+        .from("planes")
+        .upsert({ user_id: userId, datos: data, actualizado_en: new Date().toISOString() })
+        .then(() => {});
+    }, ESPERA_GUARDADO_MS);
+    return () => clearTimeout(t);
+  }, [data, duenio, userId, remotoOk]);
 
   function update(patch: Partial<PlanData>) {
     setData((prev) => ({ ...prev, ...patch }));
