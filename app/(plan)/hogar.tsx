@@ -15,7 +15,7 @@ export default function HogarScreen() {
 
   return (
     <WizardScreen
-      paso={2}
+      paso={3}
       titulo="¿Para cuántos cocinas?"
       subtitulo="Con esto escalamos las porciones y el presupuesto."
       onContinuar={() => router.push("/(plan)/dias")}

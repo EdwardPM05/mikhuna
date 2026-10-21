@@ -40,7 +40,7 @@ export default function ModoScreen() {
         title="Quiero planear mi semana"
         subtitle="Arma tu plan de comidas según lo que venden los negocios de tu zona."
         mascot={require("../../src/assets/mascots/papi_papa.png")}
-        onPress={() => router.push("/(plan)/negocio")}
+        onPress={() => router.push("/(plan)/quien-eres")}
       />
       <ModoCard
         title="Quiero pedir algo ahora"

@@ -9,7 +9,7 @@ export default function NegocioScreen() {
 
   return (
     <WizardScreen
-      paso={1}
+      paso={2}
       titulo="¿Dónde haces tus compras?"
       subtitulo={`Armamos tu plan alrededor de lo que vende este negocio${
         data.distrito ? ` en ${data.distrito}` : ""

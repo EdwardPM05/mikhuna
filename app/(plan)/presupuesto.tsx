@@ -10,7 +10,7 @@ export default function PresupuestoScreen() {
 
   return (
     <WizardScreen
-      paso={4}
+      paso={5}
       titulo="¿Cuál es tu presupuesto semanal?"
       subtitulo="Ajustamos los platos para no pasarnos de este monto."
       onContinuar={() => router.push("/(plan)/antojo")}

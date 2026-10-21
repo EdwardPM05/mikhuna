@@ -23,7 +23,7 @@ export default function RestriccionesScreen() {
 
   return (
     <WizardScreen
-      paso={6}
+      paso={7}
       titulo="¿Alguna restricción alimentaria?"
       subtitulo="Marca todas las que apliquen."
       habilitado={data.restricciones.length > 0}

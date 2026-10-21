@@ -9,7 +9,7 @@ export default function DiasScreen() {
 
   return (
     <WizardScreen
-      paso={3}
+      paso={4}
       titulo="¿Qué días cocinarás?"
       subtitulo={
         data.dias.length === 0

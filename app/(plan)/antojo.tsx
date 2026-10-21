@@ -12,7 +12,7 @@ export default function AntojoScreen() {
 
   return (
     <WizardScreen
-      paso={5}
+      paso={6}
       titulo="¿Qué se te antoja esta semana?"
       subtitulo={`Elige hasta ${MAX} · ${data.antojos.length}/${MAX}`}
       habilitado={data.antojos.length > 0}

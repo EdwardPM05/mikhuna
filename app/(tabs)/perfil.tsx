@@ -132,7 +132,7 @@ export default function PerfilScreen() {
             icono="calendar-outline"
             titulo={tienePlan ? "Rehacer mi plan semanal" : "Armar mi plan semanal"}
             detalle={tienePlan ? `${data.dias.length} días planeados` : "Aún no tienes un plan"}
-            onPress={() => router.push("/(plan)/negocio")}
+            onPress={() => router.push("/(plan)/quien-eres")}
           />
           <View className="h-px bg-ink/10 ml-16" />
           <Fila

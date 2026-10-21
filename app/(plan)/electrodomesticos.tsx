@@ -28,7 +28,7 @@ export default function ElectrodomesticosScreen() {
 
   return (
     <WizardScreen
-      paso={7}
+      paso={8}
       titulo="¿Qué tienes en tu cocina?"
       subtitulo="Solo sugerimos platos que puedas preparar de verdad. Toca los aparatos que sí tienes."
       habilitado={data.electrodomesticos.length > 0}

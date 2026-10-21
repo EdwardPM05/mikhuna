@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 export default function PlanLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FDF3E7" } }}>
+      <Stack.Screen name="quien-eres" />
       <Stack.Screen name="negocio" />
       <Stack.Screen name="hogar" />
       <Stack.Screen name="dias" />
