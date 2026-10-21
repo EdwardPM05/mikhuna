@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    return { error: error ? mensajeDeError(error.message) : null };
   }
 
   async function signUp(email: string, password: string, nombre: string) {
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: { data: { nombre } },
     });
-    return { error: error?.message ?? null };
+    return { error: error ? mensajeDeError(error.message) : null };
   }
 
   async function signOut() {
@@ -74,6 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+// Supabase responde en inglés; estos son los casos que ve un usuario normal.
+function mensajeDeError(mensaje: string) {
+  const m = mensaje.toLowerCase();
+  if (m.includes("invalid login credentials")) return "Correo o contraseña incorrectos.";
+  if (m.includes("email not confirmed")) return "Confirma tu correo antes de ingresar. Revisa tu bandeja de entrada.";
+  if (m.includes("already registered")) return "Ya existe una cuenta con ese correo.";
+  if (m.includes("password should be")) return "La contraseña debe tener al menos 6 caracteres.";
+  if (m.includes("invalid format") || m.includes("is invalid")) return "Ese correo no parece válido.";
+  if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un momento y vuelve a probar.";
+  if (m.includes("fetch") || m.includes("network")) return "No hay conexión. Revisa tu internet e inténtalo de nuevo.";
+  return mensaje;
 }
 
 function nombreVisible(session: Session | null) {
