@@ -54,6 +54,20 @@ $cuerpo = @{
 
 $url = "https://api.supabase.com/v1/projects/lvkweyiwzkqtojlylinc/config/auth"
 $headers = @{ Authorization = "Bearer $token" }
+
+# Supabase no deja cambiar plantillas sin SMTP propio: se revisa antes para dar un
+# mensaje claro (nunca se muestra la contraseña del SMTP).
+$actual = Invoke-RestMethod -Method Get -Uri $url -Headers $headers
+"SMTP host:      " + $(if ($actual.smtp_host) { $actual.smtp_host } else { "(vacío)" })
+"SMTP puerto:    " + $(if ($actual.smtp_port) { $actual.smtp_port } else { "(vacío)" })
+"SMTP usuario:   " + $(if ($actual.smtp_user) { $actual.smtp_user } else { "(vacío)" })
+"Remitente:      " + $(if ($actual.smtp_admin_email) { $actual.smtp_admin_email } else { "(vacío)" })
+"Contraseña:     " + $(if ($actual.smtp_pass) { "configurada" } else { "(vacía)" })
+if (-not $actual.smtp_host -or -not $actual.smtp_admin_email) {
+  "El proyecto mikhuna (lvkweyiwzkqtojlylinc) no tiene SMTP propio guardado."
+  "Configúralo en Authentication -> Emails -> SMTP Settings de ESE proyecto y vuelve a correr el script."
+  exit 1
+}
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($cuerpo)
 $r = Invoke-RestMethod -Method Patch -Uri $url -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes
 
