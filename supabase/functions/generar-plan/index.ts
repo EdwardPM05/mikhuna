@@ -38,8 +38,17 @@ const CORS_HEADERS = {
 };
 
 // Cuántas recetas ve Gemini para elegir: suficientes para variar la semana,
-// pocas para que el prompt sea corto y barato.
-const MAX_CANDIDATAS = 30;
+// pocas para que el prompt sea corto, rápido y barato.
+const MAX_CANDIDATAS = 20;
+
+// Elegir 7 ids de una lista no necesita que el modelo "piense" mucho, y
+// pensando tardaba más que el plazo. Cada generación de Gemini lo configura
+// distinto; para otros modelos no se manda nada.
+function configPensamiento(modelo: string) {
+  if (modelo.startsWith("gemini-2.5-flash")) return { thinkingConfig: { thinkingBudget: 0 } };
+  if (modelo.startsWith("gemini-3")) return { thinkingConfig: { thinkingLevel: "low" } };
+  return {};
+}
 
 function json(cuerpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(cuerpo), {
@@ -134,7 +143,7 @@ const NIVEL_TEXTO: Record<string, string> = {
 };
 
 function describirReceta(r: Receta): string {
-  const ingredientes = r.ingredientes.map((i) => i.texto).join("; ");
+  const ingredientes = r.ingredientes.slice(0, 4).map((i) => i.texto).join("; ");
   return `- ${r.id} | ${r.nombre} | ${r.region ?? r.cocina} | dificultad ${r.dificultad}/3 | ${r.tiempoMin} min | ` +
     `S/ ${r.precio} | ${r.etiquetas.join(", ")} | ${ingredientes}`;
 }
@@ -263,11 +272,11 @@ Deno.serve(async (req: Request) => {
   const lista = candidatas(p, MAX_CANDIDATAS);
   // Nada cumple sus restricciones con su cocina: mejor un plan vacío que uno
   // que se las salte.
-  if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas" });
+  if (lista.length === 0) return json({ platos: [], fuente: "reglas", motivo: "sin_recetas", modelo: GEMINI_MODEL });
 
   if (!GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY no configurada; se responde con las reglas");
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave" });
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: "sin_clave", modelo: GEMINI_MODEL });
   }
 
   // Los detalles de Gemini se quedan en los logs de la función: pueden traer
@@ -282,12 +291,13 @@ Deno.serve(async (req: Request) => {
         // Los modelos que "piensan" gastan parte de este límite antes de
         // responder; con muy poco se cortan sin dar el plan.
         maxOutputTokens: 8192,
+        ...configPensamiento(GEMINI_MODEL),
       },
     });
 
     if (!geminiRes.ok) {
       console.error("Gemini falló", geminiRes.status, await geminiRes.text());
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_${geminiRes.status}` });
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_${geminiRes.status}`, modelo: GEMINI_MODEL });
     }
 
     const data = await geminiRes.json();
@@ -296,13 +306,13 @@ Deno.serve(async (req: Request) => {
       console.error("Respuesta vacía de Gemini", JSON.stringify(data));
       // finishReason dice por qué (MAX_TOKENS, SAFETY...), sin datos internos.
       const porque = data.candidates?.[0]?.finishReason ?? "vacia";
-      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_sin_texto_${porque}` });
+      return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: `gemini_sin_texto_${porque}`, modelo: GEMINI_MODEL });
     }
 
     return json({ platos: completarPlan(p, lista, JSON.parse(texto).platos), fuente: "ia" });
   } catch (err) {
     console.error("Error inesperado en generar-plan", err);
     const tardo = err instanceof DOMException && err.name === "TimeoutError";
-    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: tardo ? "gemini_tardo" : "error" });
+    return json({ platos: armarPlanLocal(p, lista), fuente: "reglas", motivo: tardo ? "gemini_tardo" : "error", modelo: GEMINI_MODEL });
   }
 });
