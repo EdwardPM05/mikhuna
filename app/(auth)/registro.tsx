@@ -1,21 +1,58 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
-import { Link, router } from "expo-router";
+import { Link, router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { BrandButton } from "../../components/BrandButton";
 import { CampoTexto } from "../../components/CampoTexto";
 
+// Supabase no deja pedir otro código antes de este tiempo.
+const ESPERA_REENVIO_S = 60;
+
 export default function RegistroScreen() {
-  const { signUp } = useAuth();
+  const { signUp, confirmarRegistro, reenviarCodigoRegistro } = useAuth();
+  // Desde el login, una cuenta sin confirmar llega aquí directo al paso del código.
+  const params = useLocalSearchParams<{ email?: string; confirmar?: string }>();
   const [nombre, setNombre] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [creado, setCreado] = useState(false);
+  const [creado, setCreado] = useState(params.confirmar === "1");
+  const [codigo, setCodigo] = useState("");
+  const [espera, setEspera] = useState(0);
+
+  useEffect(() => {
+    if (espera <= 0) return;
+    const t = setTimeout(() => setEspera((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [espera]);
+
+  async function confirmar() {
+    if (codigo.length < 6 || enviando) return;
+    setError(null);
+    setEnviando(true);
+    const { error } = await confirmarRegistro(email.trim(), codigo);
+    setEnviando(false);
+    if (error) {
+      setError(error);
+      return;
+    }
+    router.replace("/"); // confirmado: ya hay sesión, entra al onboarding
+  }
+
+  async function reenviar() {
+    if (espera > 0 || enviando) return;
+    setError(null);
+    const { error } = await reenviarCodigoRegistro(email.trim());
+    if (error) {
+      setError(error);
+      return;
+    }
+    setEspera(ESPERA_REENVIO_S);
+  }
 
   async function handleRegistro() {
     if (enviando) return;
@@ -36,21 +73,67 @@ export default function RegistroScreen() {
       return;
     }
     setCreado(true);
+    setEspera(ESPERA_REENVIO_S);
   }
 
   if (creado) {
     return (
-      <SafeAreaView className="flex-1 bg-cream px-6 justify-center items-center">
-        <Image
-          source={require("../../src/assets/mascots/papi_papa_saludo.png")}
-          style={{ width: 130, height: 130, marginBottom: 12 }}
-          contentFit="contain"
-        />
-        <Text className="font-display text-2xl text-ink text-center mb-2">¡Cuenta creada!</Text>
-        <Text className="font-body text-base text-ink/70 text-center mb-8">
-          Te enviamos un correo a {email.trim()}. Confírmalo y luego inicia sesión.
-        </Text>
-        <BrandButton label="Ir a iniciar sesión" onPress={() => router.replace("/(auth)/login")} />
+      <SafeAreaView className="flex-1 bg-cream">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
+          <ScrollView
+            className="flex-1 px-6"
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingVertical: 24 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Image
+              source={require("../../src/assets/mascots/papi_papa_saludo.png")}
+              style={{ width: 120, height: 120, alignSelf: "center", marginBottom: 8 }}
+              contentFit="contain"
+            />
+            <Text className="font-display text-2xl text-ink text-center">Confirma tu correo</Text>
+            <Text className="font-body text-sm text-ink/60 text-center mb-6">
+              Escribe el código que te enviamos a{" "}
+              <Text className="font-body-bold text-ink">{email.trim()}</Text> y listo, entras a Mikhuna. Si ya no lo
+              tienes, pide otro abajo.
+            </Text>
+
+            <CampoTexto
+              icono="keypad-outline"
+              value={codigo}
+              onChangeText={(t) => setCodigo(t.replace(/\D/g, ""))}
+              placeholder="Código del correo"
+              keyboardType="number-pad"
+              autoComplete="one-time-code"
+              maxLength={10}
+              returnKeyType="go"
+              onSubmitEditing={confirmar}
+            />
+
+            {error && (
+              <View className="flex-row items-start bg-chili/10 rounded-xl px-3 py-2.5 mb-3">
+                <Ionicons name="alert-circle" size={16} color="#E5131B" style={{ marginTop: 1 }} />
+                <Text className="font-body-semibold text-sm text-maroon ml-2 flex-1">{error}</Text>
+              </View>
+            )}
+
+            <View className="mt-1 mb-5">
+              <BrandButton
+                label={enviando ? "Confirmando..." : "Confirmar y entrar"}
+                disabled={codigo.length < 6 || enviando}
+                onPress={confirmar}
+              />
+            </View>
+
+            <Pressable onPress={reenviar} disabled={espera > 0 || enviando} hitSlop={8} className="mb-4">
+              <Text className={`font-body-semibold text-center ${espera > 0 ? "text-ink/40" : "text-chili"}`}>
+                {espera > 0 ? `¿No llegó? Reenviar en ${espera} s` : "¿No llegó? Reenviar código"}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => router.replace("/(auth)/login")} hitSlop={8}>
+              <Text className="font-body-semibold text-maroon text-center">Volver a iniciar sesión</Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }

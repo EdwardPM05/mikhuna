@@ -14,6 +14,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [sinConfirmar, setSinConfirmar] = useState(false);
 
   const completo = email.trim() !== "" && password !== "";
 
@@ -26,11 +27,13 @@ export default function LoginScreen() {
   async function handleLogin() {
     if (!completo || enviando) return;
     setError(null);
+    setSinConfirmar(false);
     setEnviando(true);
-    const { error } = await signIn(email.trim(), password);
+    const { error, sinConfirmar } = await signIn(email.trim(), password);
     setEnviando(false);
     if (error) {
       setError(error);
+      setSinConfirmar(sinConfirmar);
       return;
     }
     router.replace("/"); // index decide: onboarding la primera vez, el plan si ya hay distrito
@@ -92,7 +95,20 @@ export default function LoginScreen() {
           {error && (
             <View className="flex-row items-start bg-chili/10 rounded-xl px-3 py-2.5 mb-3">
               <Ionicons name="alert-circle" size={16} color="#E5131B" style={{ marginTop: 1 }} />
-              <Text className="font-body-semibold text-sm text-maroon ml-2 flex-1">{error}</Text>
+              <View className="ml-2 flex-1">
+                <Text className="font-body-semibold text-sm text-maroon">{error}</Text>
+                {sinConfirmar && (
+                  <Pressable
+                    onPress={() =>
+                      router.push({ pathname: "/(auth)/registro", params: { email: email.trim(), confirmar: "1" } })
+                    }
+                    hitSlop={6}
+                    className="mt-1 active:opacity-60"
+                  >
+                    <Text className="font-body-bold text-sm text-chili">Confirmar con un código →</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           )}
 

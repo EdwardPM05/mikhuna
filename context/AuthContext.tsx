@@ -7,7 +7,8 @@ type AuthContextValue = {
   loading: boolean;
   // nombre que el usuario dio al registrarse; si no lo tiene, la parte del correo antes de la @
   nombre: string;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  // sinConfirmar: la cuenta existe pero aún no confirmó su correo
+  signIn: (email: string, password: string) => Promise<{ error: string | null; sinConfirmar: boolean }>;
   // conSesion: Supabase ya inició sesión (el proyecto no pide confirmar el correo)
   signUp: (
     email: string,
@@ -18,6 +19,10 @@ type AuthContextValue = {
   // "Olvidé mi contraseña": Supabase manda un código al correo (plantilla
   // "Reset Password" con {{ .Token }}) y con ese código se pone la nueva.
   enviarCodigoRecuperacion: (email: string) => Promise<{ error: string | null }>;
+  // Confirmación del registro con el código del correo (plantilla "Confirm
+  // signup" con {{ .Token }}); al confirmar queda la sesión iniciada.
+  confirmarRegistro: (email: string, codigo: string) => Promise<{ error: string | null }>;
+  reenviarCodigoRegistro: (email: string) => Promise<{ error: string | null }>;
   restablecerContrasena: (
     email: string,
     codigo: string,
@@ -71,7 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? mensajeDeError(error.message) : null };
+    return {
+      error: error ? mensajeDeError(error.message) : null,
+      sinConfirmar: !!error && error.message.toLowerCase().includes("email not confirmed"),
+    };
   }
 
   async function signUp(email: string, password: string, nombre: string) {
@@ -85,6 +93,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut();
+  }
+
+  async function confirmarRegistro(email: string, codigo: string) {
+    const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: "email" });
+    return { error: error ? mensajeDeError(error.message) : null };
+  }
+
+  async function reenviarCodigoRegistro(email: string) {
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    return { error: error ? mensajeDeError(error.message) : null };
   }
 
   async function enviarCodigoRecuperacion(email: string) {
@@ -112,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         enviarCodigoRecuperacion,
         restablecerContrasena,
+        confirmarRegistro,
+        reenviarCodigoRegistro,
       }}>
       {children}
     </AuthContext.Provider>
