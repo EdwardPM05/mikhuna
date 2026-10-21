@@ -1,18 +1,29 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { CATEGORIAS_EXPLORAR, NEGOCIOS } from "../../lib/catalogo";
+import { CATEGORIAS_EXPLORAR, NEGOCIOS, PRODUCTOS } from "../../lib/catalogo";
+import { useCart } from "../../context/CartContext";
 
 export default function ExplorarScreen() {
   const [categoria, setCategoria] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const { negocioId, cantidadTotal, total } = useCart();
+  const negocioCarrito = NEGOCIOS.find((n) => n.id === negocioId);
 
+  // La búsqueda mira el nombre y el tipo del negocio y también lo que vende,
+  // para que "pollo" encuentre al mercado que tiene pollo.
   const negocios = useMemo(() => {
-    if (!categoria) return NEGOCIOS;
-    return NEGOCIOS.filter((n) => n.categorias.includes(categoria));
-  }, [categoria]);
+    const termino = busqueda.trim().toLowerCase();
+    return NEGOCIOS.filter((n) => {
+      if (categoria && !n.categorias.includes(categoria)) return false;
+      if (!termino) return true;
+      if (`${n.nombre} ${n.tipo}`.toLowerCase().includes(termino)) return true;
+      return PRODUCTOS.some((p) => p.negocioId === n.id && p.nombre.toLowerCase().includes(termino));
+    });
+  }, [categoria, busqueda]);
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -23,6 +34,23 @@ export default function ExplorarScreen() {
           style={{ width: 36, height: 36 }}
           contentFit="contain"
         />
+      </View>
+
+      <View className="flex-row items-center bg-white rounded-2xl mx-6 px-4 mb-4 border border-ink/10">
+        <Ionicons name="search" size={18} color="rgba(36,31,33,0.4)" />
+        <TextInput
+          value={busqueda}
+          onChangeText={setBusqueda}
+          placeholder="Busca un negocio o producto"
+          placeholderTextColor="rgba(36,31,33,0.4)"
+          returnKeyType="search"
+          className="flex-1 font-body text-ink py-3 ml-2"
+        />
+        {busqueda.length > 0 && (
+          <Pressable onPress={() => setBusqueda("")} hitSlop={8} accessibilityLabel="Borrar búsqueda">
+            <Ionicons name="close-circle" size={18} color="rgba(36,31,33,0.35)" />
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -52,6 +80,28 @@ export default function ExplorarScreen() {
       </ScrollView>
 
       <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 24 }}>
+        {negocios.length === 0 && (
+          <View className="items-center pt-10 px-4">
+            <Image
+              source={require("../../src/assets/mascots/choclito.png")}
+              style={{ width: 90, height: 90, marginBottom: 12 }}
+              contentFit="contain"
+            />
+            <Text className="font-display-bold text-lg text-ink text-center mb-1">No encontramos nada</Text>
+            <Text className="font-body text-sm text-ink/60 text-center mb-4">
+              Prueba con otra palabra o quita el filtro.
+            </Text>
+            <Pressable
+              onPress={() => {
+                setBusqueda("");
+                setCategoria(null);
+              }}
+              className="bg-peach/60 rounded-full px-4 py-2 active:opacity-70"
+            >
+              <Text className="font-body-bold text-xs text-maroon">Ver todos los negocios</Text>
+            </Pressable>
+          </View>
+        )}
         {negocios.map((negocio) => (
           <Pressable
             key={negocio.id}
@@ -66,7 +116,8 @@ export default function ExplorarScreen() {
             </View>
 
             <View className="flex-1 ml-3">
-              <Text className="font-body-extrabold text-ink text-base mb-0.5">{negocio.nombre}</Text>
+              <Text className="font-body-extrabold text-ink text-base">{negocio.nombre}</Text>
+              <Text className="font-body text-xs text-ink/50 mb-0.5">{negocio.tipo}</Text>
               <View className="flex-row items-center">
                 <Ionicons name="star" size={12} color="#F7941D" />
                 <Text className="font-body-semibold text-xs text-ink/70 ml-1 mr-2">
@@ -88,6 +139,26 @@ export default function ExplorarScreen() {
           </Pressable>
         ))}
       </ScrollView>
+
+      {cantidadTotal > 0 && negocioCarrito && (
+        <View className="px-6 pb-3 pt-2">
+          <Pressable
+            onPress={() => router.push("/(delivery)/carrito")}
+            className="flex-row items-center bg-chili rounded-2xl px-4 py-3.5 active:opacity-90"
+          >
+            <View className="bg-cream rounded-full min-w-[26px] h-[26px] px-1.5 items-center justify-center mr-3">
+              <Text className="font-body-extrabold text-xs text-chili">{cantidadTotal}</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="font-display-bold text-base text-cream leading-5">Ver carrito</Text>
+              <Text className="font-body text-xs text-cream/80" numberOfLines={1}>
+                {negocioCarrito.nombre}
+              </Text>
+            </View>
+            <Text className="font-display-bold text-base text-cream">S/ {total.toFixed(2)}</Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
