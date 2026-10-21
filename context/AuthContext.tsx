@@ -34,21 +34,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // `loading` solo termina cuando se sabe si hay sesión, incluido el intento
+    // de auto-login. Si el evento inicial de Supabase (sin sesión) lo
+    // terminara antes, la app ya habría mandado al login y la sesión del
+    // auto-login llegaría tarde.
+    let autoLoginEnCurso = false;
+
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session && HAY_AUTO_LOGIN) {
-        const { error } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
-        if (error) {
-          setLoading(false); // credenciales de dev inválidas o sin red: cae al login normal
-        }
+        autoLoginEnCurso = true;
+        const { data: login } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
+        autoLoginEnCurso = false;
+        setSession(login.session); // null si las credenciales de dev fallan o no hay red
       } else {
         setSession(data.session);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === "INITIAL_SESSION") return; // de eso se encarga getSession
       setSession(newSession);
-      setLoading(false);
+      if (!autoLoginEnCurso) setLoading(false);
     });
 
     return () => listener.subscription.unsubscribe();

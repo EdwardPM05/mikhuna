@@ -2,20 +2,26 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
-import { Link, router } from "expo-router";
+import { Link, Redirect, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { BrandButton } from "../../components/BrandButton";
 import { CampoTexto } from "../../components/CampoTexto";
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, session } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   const completo = email.trim() !== "" && password !== "";
+
+  // La sesión puede llegar después de mostrar el login (por ejemplo, el
+  // auto-login de desarrollo termina tarde): en ese caso no hay nada que pedir.
+  if (session && !enviando) {
+    return <Redirect href="/" />;
+  }
 
   async function handleLogin() {
     if (!completo || enviando) return;
