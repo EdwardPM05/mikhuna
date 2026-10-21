@@ -19,6 +19,8 @@ import {
   RESTRICCIONES_IDS,
   armarPlanLocal,
   candidatas,
+  clavesDe,
+  dietasPermitidas,
   esReceta,
   razonDe,
   respetaRestricciones,
@@ -124,14 +126,6 @@ async function clienteDelUsuario(req: Request): Promise<SupabaseClient | null> {
   return !error && data.user ? supabase : null;
 }
 
-// Qué dietas puede comer, en los términos de la columna `dieta`.
-function dietasPermitidas(restricciones: string[]): string[] {
-  if (restricciones.includes("vegano")) return ["vegana"];
-  if (restricciones.includes("vegetariano")) return ["vegetariana", "vegana"];
-  if (restricciones.includes("pescetariano")) return ["pescado", "vegetariana", "vegana"];
-  return ["carne", "pescado", "vegetariana", "vegana"];
-}
-
 // Cuántas recetas del dataset se traen para que las reglas elijan las mejores.
 const MAX_DEL_DATASET = 80;
 
@@ -192,7 +186,7 @@ const NIVEL_TEXTO: Record<string, string> = {
 };
 
 function describirReceta(r: Receta): string {
-  const ingredientes = r.ingredientes.slice(0, 4).map((i) => i.texto).join("; ");
+  const ingredientes = clavesDe(r).slice(0, 8).join(", ");
   return `- ${r.id} | ${r.nombre} | ${r.region ?? r.pais ?? r.cocina} | dificultad ${r.dificultad}/3 | ${r.tiempoMin} min | ` +
     `S/ ${r.precio} | ${r.etiquetas.join(", ")} | ${ingredientes}`;
 }
@@ -213,15 +207,17 @@ Cocina para ${p.personas} persona(s). Presupuesto aproximado de la semana: S/ ${
 Días que va a cocinar: ${p.dias.join(", ")}
 
 Estas son las ÚNICAS recetas que puedes usar. Ya cumplen sus restricciones alimentarias y se pueden hacer con lo que
-tiene en su cocina (id | nombre | origen | dificultad | tiempo | precio | estilo | ingredientes):
+tiene en su cocina (id | nombre | origen | dificultad | tiempo | precio | estilo | ingredientes principales):
 ${lista.map(describirReceta).join("\n")}
 
 Elige una receta por cada día, usando exactamente el id de la lista. Piensa en esta persona: su nivel en la cocina, su
 objetivo, la comida que extraña, sus antojos y su presupuesto. Varía la semana (no repitas una receta si hay otras que
-le sirvan) y evita poner dos días seguidos platos muy parecidos.
+le sirvan) y evita poner dos días seguidos platos muy parecidos. Prefiere platos que compartan ingredientes
+principales con otros días de la semana (por ejemplo, si el lunes lleva pollo y palta, otro día puede usar lo que
+sobró): así compra una vez y no se le malogra nada.
 
 Para cada día escribe en "razon" una frase corta en español (máximo 90 caracteres), hablándole de tú, de por qué ese
-plato le sirve (por ejemplo: "Fácil y con proteína para después del gym"). No inventes datos que no estén en la lista.
+plato le sirve (por ejemplo: "Fácil y con proteína para después del gym" o "Aprovecha el pollo del lunes"). No inventes datos que no estén en la lista.
 
 Responde SOLO con este JSON, sin texto antes ni después:
 {"platos":[{"dia":"${p.dias[0]}","recetaId":"<id de la lista>","razon":"<frase>"}]}`;
