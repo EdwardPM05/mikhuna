@@ -125,6 +125,7 @@ docs/           documentación
 
 | Doc | De qué va |
 |---|---|
+| [ENFOQUE](docs/ENFOQUE.md) | Qué promete Mikhuna, qué falta y cómo debe funcionar la IA |
 | [BRANDING](docs/BRANDING.md) | Colores, tipografía, mascotas y tono de voz |
 | [ARQUITECTURA](docs/ARQUITECTURA.md) | Carpetas, rutas, contexts y datos |
 | [FLUJOS](docs/FLUJOS.md) | Onboarding, plan semanal, delivery, pedidos y perfil |
