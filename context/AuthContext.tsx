@@ -125,9 +125,11 @@ function mensajeDeError(mensaje: string) {
   if (m.includes("email not confirmed")) return "Confirma tu correo antes de ingresar. Revisa tu bandeja de entrada.";
   if (m.includes("already registered")) return "Ya existe una cuenta con ese correo.";
   if (m.includes("password should be")) return "La contraseña debe tener al menos 6 caracteres.";
-  if (m.includes("invalid format") || m.includes("is invalid")) return "Ese correo no parece válido.";
+  // Antes que la regla del correo: "Token has expired or is invalid" también dice "is invalid".
   if (m.includes("token has expired") || m.includes("otp") || m.includes("invalid token"))
     return "El código no es válido o ya venció. Pide uno nuevo.";
+  if (m.includes("invalid format") || (m.includes("email") && m.includes("invalid")))
+    return "Ese correo no parece válido.";
   if (m.includes("should be different")) return "La nueva contraseña tiene que ser distinta a la anterior.";
   if (m.includes("security purposes")) return "Espera unos segundos antes de pedir otro código.";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un momento y vuelve a probar.";
