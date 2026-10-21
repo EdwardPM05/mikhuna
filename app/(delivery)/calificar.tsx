@@ -80,6 +80,7 @@ export default function CalificarScreen() {
         value={comentario}
         onChangeText={setComentario}
         placeholder="Cuéntanos qué te pareció (opcional)"
+        maxLength={500}
         placeholderTextColor="rgba(36,31,33,0.4)"
         multiline
         className="border border-ink/15 rounded-2xl px-4 py-3 font-body text-ink bg-white mb-8"

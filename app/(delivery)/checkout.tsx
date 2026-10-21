@@ -108,6 +108,7 @@ export default function CheckoutScreen() {
           value={direccion}
           onChangeText={setDireccion}
           placeholder="Calle, número, referencia..."
+          maxLength={300}
           placeholderTextColor="rgba(36,31,33,0.4)"
           className="border border-ink/15 rounded-2xl px-4 py-3 font-body text-ink bg-white mb-5"
         />
@@ -174,6 +175,7 @@ export default function CheckoutScreen() {
           value={nota}
           onChangeText={setNota}
           placeholder="Ej: tocar el timbre, sin ají..."
+          maxLength={500}
           placeholderTextColor="rgba(36,31,33,0.4)"
           multiline
           className="border border-ink/15 rounded-2xl px-4 py-3 font-body text-ink bg-white mb-2"
