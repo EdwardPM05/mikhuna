@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "../context/AuthContext";
 import { PlanWizardProvider } from "../context/PlanWizardContext";
 import { CartProvider } from "../context/CartContext";
+import { OrdersProvider } from "../context/OrdersContext";
 import { colors } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -55,16 +56,18 @@ export default function RootLayout() {
     <AuthProvider>
       <PlanWizardProvider>
         <CartProvider>
-          <StatusBar style="dark" />
-          <PhoneFrame>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(plan)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(delivery)" />
-            </Stack>
-          </PhoneFrame>
+          <OrdersProvider>
+            <StatusBar style="dark" />
+            <PhoneFrame>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(onboarding)" />
+                <Stack.Screen name="(plan)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(delivery)" />
+              </Stack>
+            </PhoneFrame>
+          </OrdersProvider>
         </CartProvider>
       </PlanWizardProvider>
     </AuthProvider>

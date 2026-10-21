@@ -4,6 +4,7 @@ import { SafeAreaView } from "../../components/SafeAreaView";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../../context/CartContext";
+import { useOrders } from "../../context/OrdersContext";
 import { BrandButton } from "../../components/BrandButton";
 
 const PROPINAS = [0, 3, 5, 8];
@@ -14,7 +15,8 @@ const METODOS = [
 ];
 
 export default function CheckoutScreen() {
-  const { total, vaciar } = useCart();
+  const { negocioId, items, total, vaciar } = useCart();
+  const { crear } = useOrders();
   const [direccion, setDireccion] = useState("");
   const [metodo, setMetodo] = useState("efectivo");
   const [propina, setPropina] = useState(3);
@@ -23,8 +25,19 @@ export default function CheckoutScreen() {
   const totalConPropina = total + propina;
 
   function confirmarPedido() {
+    if (!negocioId || items.length === 0) return;
+    const id = crear({
+      negocioId,
+      items,
+      subtotal: total,
+      propina,
+      total: totalConPropina,
+      metodoPago: METODOS.find((m) => m.id === metodo)?.nombre ?? metodo,
+      direccion: direccion.trim(),
+      nota: nota.trim(),
+    });
     vaciar();
-    router.replace("/(delivery)/seguimiento");
+    router.replace({ pathname: "/(delivery)/seguimiento", params: { id } });
   }
 
   return (

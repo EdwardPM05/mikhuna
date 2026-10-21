@@ -2,14 +2,25 @@ import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeAreaView";
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BrandButton } from "../../components/BrandButton";
+import { NEGOCIOS } from "../../lib/catalogo";
+import { useOrders } from "../../context/OrdersContext";
 
 export default function CalificarScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { pedidos, pedidoPorId, calificar } = useOrders();
+  const pedido = pedidoPorId(id) ?? (id ? undefined : pedidos[0]);
+  const negocio = NEGOCIOS.find((n) => n.id === pedido?.negocioId);
   const [estrellas, setEstrellas] = useState(0);
   const [comentario, setComentario] = useState("");
   const [enviado, setEnviado] = useState(false);
+
+  function enviar() {
+    if (pedido) calificar(pedido.id, estrellas, comentario.trim());
+    setEnviado(true);
+  }
 
   if (enviado) {
     return (
@@ -31,7 +42,9 @@ export default function CalificarScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream px-6 pt-6">
       <Text className="font-display text-2xl text-ink text-center mb-1">¿Cómo estuvo tu pedido?</Text>
-      <Text className="font-body text-sm text-ink/60 text-center mb-8">Bodega Don José</Text>
+      <Text className="font-body text-sm text-ink/60 text-center mb-8">
+        {negocio?.nombre ?? "Tu pedido"}
+      </Text>
 
       <View className="flex-row justify-center mb-8">
         {[1, 2, 3, 4, 5].map((n) => (
@@ -58,7 +71,7 @@ export default function CalificarScreen() {
       <BrandButton
         label="Enviar calificación"
         disabled={estrellas === 0}
-        onPress={() => setEnviado(true)}
+        onPress={enviar}
       />
     </SafeAreaView>
   );
