@@ -62,7 +62,12 @@ export default function RecetaScreen() {
   const antojo = ANTOJOS.find((a) => a.id === receta.antojoId);
 
   return (
-    <SafeAreaView className="flex-1 bg-cream" edges={["bottom", "left", "right"]}>
+    // Con foto, la imagen va de borde a borde bajo la barra de estado; sin foto
+    // (todas las del dataset) el título quedaba encima de la hora y la batería.
+    <SafeAreaView
+      className="flex-1 bg-cream"
+      edges={receta.foto ? ["bottom", "left", "right"] : ["top", "bottom", "left", "right"]}
+    >
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
         {receta.foto ? (
           <View style={{ position: "relative" }}>
