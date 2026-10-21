@@ -11,7 +11,7 @@ import { BrandButton } from "../../components/BrandButton";
 
 export default function CarritoIngredientesScreen() {
   const { data, quitarDeCarrito } = usePlanWizard();
-  const { agregar } = useCart();
+  const { llenarCon } = useCart();
   const [busqueda, setBusqueda] = useState("");
 
   const grupos = useMemo(() => {
@@ -38,8 +38,9 @@ export default function CarritoIngredientesScreen() {
   const totalItems = Object.keys(data.preferenciasCompra).length;
 
   function pedirGrupo(grupo: (typeof grupos)[number]) {
-    grupo.items.forEach((it) =>
-      agregar(grupo.negocio.id, { id: it.ingrediente.id, nombre: it.ingrediente.nombre, precio: it.precio })
+    llenarCon(
+      grupo.negocio.id,
+      grupo.items.map((it) => ({ id: it.ingrediente.id, nombre: it.ingrediente.nombre, precio: it.precio }))
     );
     router.push("/(delivery)/carrito");
   }
@@ -62,7 +63,13 @@ export default function CarritoIngredientesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-row items-center px-6 pt-2 pb-3">
-        <Pressable onPress={() => router.back()} hitSlop={10} className="mr-3 active:opacity-60">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
+        >
           <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Text className="font-display-bold text-lg text-ink">Carrito · {totalItems} items</Text>
@@ -116,7 +123,13 @@ export default function CarritoIngredientesScreen() {
                     <Text className="font-display-bold text-sm text-chili mr-3">
                       S/ {precio.toFixed(2)}
                     </Text>
-                    <Pressable onPress={() => quitarDeCarrito(ingrediente.id)} hitSlop={8} className="active:opacity-60">
+                    <Pressable
+                      onPress={() => quitarDeCarrito(ingrediente.id)}
+                      hitSlop={8}
+                      className="active:opacity-60"
+                      accessibilityRole="button"
+                      accessibilityLabel={`Quitar ${ingrediente.nombre}`}
+                    >
                       <Ionicons name="close-circle" size={20} color="rgba(36,31,33,0.3)" />
                     </Pressable>
                   </View>

@@ -11,7 +11,7 @@ import { BrandButton } from "../../components/BrandButton";
 
 export default function ComprarDeliveryScreen() {
   const { data } = usePlanWizard();
-  const { agregar } = useCart();
+  const { llenarCon } = useCart();
   const [tiendaPrincipal, setTiendaPrincipal] = useState<string | null>(null);
 
   // Solo mostramos negocios que de verdad venden algo de esta lista.
@@ -29,7 +29,8 @@ export default function ComprarDeliveryScreen() {
       { ingrediente: (typeof INGREDIENTES)[number]; precio: number }[]
     >();
 
-    for (const ingrediente of INGREDIENTES) {
+    // Lo que ya marcó como comprado no se vuelve a pedir.
+    for (const ingrediente of INGREDIENTES.filter((i) => !data.comprados.includes(i.id))) {
       const enPrincipal = ingrediente.ofertas.find((o) => o.negocioId === tiendaPrincipal);
       if (enPrincipal) {
         principal.push({ ingrediente, precio: enPrincipal.precio });
@@ -51,11 +52,12 @@ export default function ComprarDeliveryScreen() {
     }));
 
     return { grupoPrincipal, gruposResto };
-  }, [tiendaPrincipal, data.preferenciasCompra]);
+  }, [tiendaPrincipal, data.preferenciasCompra, data.comprados]);
 
   function pedirGrupo(grupo: { negocio: (typeof NEGOCIOS)[number]; items: { ingrediente: (typeof INGREDIENTES)[number]; precio: number }[] }) {
-    grupo.items.forEach((it) =>
-      agregar(grupo.negocio.id, { id: it.ingrediente.id, nombre: it.ingrediente.nombre, precio: it.precio })
+    llenarCon(
+      grupo.negocio.id,
+      grupo.items.map((it) => ({ id: it.ingrediente.id, nombre: it.ingrediente.nombre, precio: it.precio }))
     );
     router.push("/(delivery)/carrito");
   }
@@ -67,8 +69,10 @@ export default function ComprarDeliveryScreen() {
           onPress={() => (tiendaPrincipal ? setTiendaPrincipal(null) : router.back())}
           hitSlop={10}
           className="mr-3 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel="Atrás"
         >
-          <Ionicons name={tiendaPrincipal ? "arrow-back" : "arrow-back"} size={24} color="#241F21" />
+          <Ionicons name="arrow-back" size={24} color="#241F21" />
         </Pressable>
         <Text className="font-display-bold text-lg text-ink">Pedir por delivery</Text>
       </View>

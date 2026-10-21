@@ -10,6 +10,8 @@ type CartContextValue = {
   total: number;
   cantidadTotal: number;
   agregar: (negocioId: string, item: ItemNuevo) => { reemplazado: boolean };
+  // Deja en el carrito exactamente estos productos (uno de cada uno).
+  llenarCon: (negocioId: string, items: ItemNuevo[]) => void;
   quitar: (id: string) => void;
   cantidadDe: (id: string) => number;
   vaciar: () => void;
@@ -54,6 +56,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return { reemplazado };
   }
 
+  // Para "Pedir de X" en las listas de compra: repetir el botón no debe
+  // duplicar cantidades ni mezclar lo que quedó de otra tienda.
+  function llenarCon(nId: string, nuevos: ItemNuevo[]) {
+    guardar(nuevos.length ? { negocioId: nId, items: nuevos.map((i) => ({ ...i, cantidad: 1 })) } : VACIO);
+  }
+
   function quitar(id: string) {
     const items = actual.current.items
       .map((i) => (i.id === id ? { ...i, cantidad: i.cantidad - 1 } : i))
@@ -84,6 +92,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         total,
         cantidadTotal,
         agregar,
+        llenarCon,
         quitar,
         cantidadDe,
         vaciar,
