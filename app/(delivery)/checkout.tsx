@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../../context/CartContext";
 import { useOrders } from "../../context/OrdersContext";
+import { NEGOCIOS } from "../../lib/catalogo";
 import { BrandButton } from "../../components/BrandButton";
 
 const PROPINAS = [0, 3, 5, 8];
@@ -22,7 +23,9 @@ export default function CheckoutScreen() {
   const [propina, setPropina] = useState(3);
   const [nota, setNota] = useState("");
 
+  const negocio = NEGOCIOS.find((n) => n.id === negocioId);
   const totalConPropina = total + propina;
+  const faltaDireccion = direccion.trim().length === 0;
 
   function confirmarPedido() {
     if (!negocioId || items.length === 0) return;
@@ -50,6 +53,38 @@ export default function CheckoutScreen() {
       </View>
 
       <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 24 }}>
+        <View className="bg-white rounded-3xl p-4 mb-5 border border-ink/10">
+          <View className="flex-row items-center mb-3">
+            <View
+              className="w-9 h-9 rounded-xl items-center justify-center mr-2.5"
+              style={{ backgroundColor: negocio?.color ?? "#241F21" }}
+            >
+              <Text className="font-display-bold text-cream text-xs">{negocio?.inicial ?? "?"}</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="font-body-extrabold text-sm text-ink" numberOfLines={1}>
+                {negocio?.nombre ?? "Tu pedido"}
+              </Text>
+              {negocio ? (
+                <Text className="font-body text-xs text-ink/50">Llega en ~{negocio.tiempoEntregaMin} min</Text>
+              ) : null}
+            </View>
+            <Pressable onPress={() => router.back()} hitSlop={8} className="active:opacity-60">
+              <Text className="font-body-bold text-xs text-chili">Editar</Text>
+            </Pressable>
+          </View>
+          {items.map((item) => (
+            <View key={item.id} className="flex-row justify-between mb-1">
+              <Text className="font-body text-sm text-ink/80 flex-1 mr-2" numberOfLines={1}>
+                {item.cantidad} × {item.nombre}
+              </Text>
+              <Text className="font-body-semibold text-sm text-ink/70">
+                S/ {(item.precio * item.cantidad).toFixed(2)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
         <Text className="font-body-bold text-sm text-ink mb-2">Dirección de entrega</Text>
         <TextInput
           value={direccion}
@@ -122,16 +157,25 @@ export default function CheckoutScreen() {
         />
       </ScrollView>
 
-      <View className="px-6 pb-4 pt-2 border-t border-ink/10">
-        <View className="flex-row justify-between mb-3">
-          <Text className="font-body-semibold text-ink/70">Total a pagar</Text>
-          <Text className="font-display-bold text-ink text-lg">S/ {totalConPropina.toFixed(2)}</Text>
+      <View className="px-6 pb-4 pt-3 border-t border-ink/10">
+        <View className="flex-row justify-between mb-1">
+          <Text className="font-body text-sm text-ink/60">Subtotal</Text>
+          <Text className="font-body-semibold text-sm text-ink/70">S/ {total.toFixed(2)}</Text>
         </View>
-        <BrandButton
-          label="Confirmar pedido"
-          disabled={direccion.trim().length === 0}
-          onPress={confirmarPedido}
-        />
+        <View className="flex-row justify-between mb-2">
+          <Text className="font-body text-sm text-ink/60">Propina</Text>
+          <Text className="font-body-semibold text-sm text-ink/70">S/ {propina.toFixed(2)}</Text>
+        </View>
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="font-body-bold text-ink">Total a pagar</Text>
+          <Text className="font-display-bold text-chili text-xl">S/ {totalConPropina.toFixed(2)}</Text>
+        </View>
+        {faltaDireccion ? (
+          <Text className="font-body-semibold text-xs text-maroon text-center mb-2">
+            Escribe tu dirección para confirmar el pedido.
+          </Text>
+        ) : null}
+        <BrandButton label="Confirmar pedido" disabled={faltaDireccion} onPress={confirmarPedido} />
       </View>
     </SafeAreaView>
   );
