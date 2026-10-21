@@ -45,16 +45,28 @@ CARNE = patron(
     "costilla", "solomillo", "chuleta", "higado", "molleja", "rinon", "corazon(?:es)? de (?:res|pollo|vaca|cerdo|cordero)", "anticucho", "mondongo",
     "callos\\b", "guanciale", "pepperoni", "cecina", "charqui", "sobrebarriga", "entrana", "picana", "asado de",
     "hamburguesa", "albondiga", "caldo de (?:pollo|carne|res|gallina|huesos)", "fondo de (?:pollo|carne|ave)",
-    "pastilla de caldo", "cubito", "manteca de cerdo", "gelatina", "codorniz", "perdiz", "venado", "jabali", "frango", "porco", "linguica",
+    "pastilla de caldo", "cubito", "manteca de cerdo", "gelatina", "codorniz", "perdiz", "venado", "jabali", "frango", "porco", "linguica", "sangre", "sangrecita",
+    "sobrasada", "higadito", "menudencia", "patita", "chanfaina",
 )
 PESCADO = patron(
     "pescado", "atun", "salmon", "merluza", "bacalao", "camaron", "langost", "gamba", "pulpo", "calamar",
     "mejillon", "almeja", "concha", "choro", "anchoa", "anchoveta", "sardina", "bonito", "trucha", "corvina",
     "lenguado", "tilapia", "cangrejo", "marisco", "caballa", "jurel", "pejerrey", "surimi", "perico",
-    "dorado", "mero", "rape", "boqueron", "chipiron", "sepia", "vieira", "callos de hacha", "ostra", "erizo",
-    "pota", "pargo", "robalo", "bagre", "paiche", "doncella", "palometa", "sierra\\b", "lisa\\b", "cojinova",
+    "mero\\b", "rape", "boqueron", "chipiron", "sepia", "vieira", "callos de hacha", "ostra", "erizo",
+    "pota\\b", "pargo", "robalo", "bagre", "paiche", "doncella", "palometa", "sierra\\b", "lisa\\b", "cojinova",
     "salsa de pescado", "dashi", "katsuobushi", "camarao", "bacalhau", "peixe", "polvo\b",
 )
+
+# Lo que dice el nombre del plato también cuenta: hay recetas cuyos ingredientes no dicen de qué es la carne
+# ("500 g sangrecita", "1 pechuga") pero el nombre sí ("…de sangrecita de pollo"). Aquí no van las formas
+# del plato (hamburguesa, albóndiga, chicharrón, empanada), que también existen sin carne.
+CARNE_EN_NOMBRE = patron(
+    "pollo", "carne", "res\\b", "cerdo", "chancho", "puerco", "lechon", "pavo", "pato\\b", "cordero", "conejo",
+    "cabrito", "cuy\\b", "jamon", "tocino", "bacon", "panceta", "chorizo", "salchicha", "longaniza", "morcilla",
+    "sobrasada", "higad", "sangrecita", "mondongo", "lomo", "pechuga", "gallina", "ternera", "costilla",
+    "chuleta", "seco de", "anticucho de corazon", "cecina", "charqui",
+)
+SIN_ALGO = re.compile(r"\bsin \w+|\b(?:vegetarian|vegan|vegetal|de soya|de soja)\w*")
 
 # ---------- Alérgenos ----------
 GLUTEN = patron(
@@ -300,11 +312,14 @@ def es_dulce(ingredientes: list[dict]) -> bool:
     return bool(DULCE.search(texto)) and not SALADO.search(salado) and not CARNE.search(salado) and not PESCADO.search(salado)
 
 
-def dieta_de(nombres: list[str], animales: list[bool], apta_vegana: bool, apta_vegetariana: bool) -> str:
+def dieta_de(nombres: list[str], animales: list[bool], apta_vegana: bool, apta_vegetariana: bool,
+             plato: str = "") -> str:
     texto = " | ".join(nombres)
-    if CARNE.search(texto):
+    # "Empanadas sin carne" o "Hamburguesa vegetariana de pollo… de soya" no son carne por el nombre.
+    plato = SIN_ALGO.sub(" ", plato)
+    if CARNE.search(texto) or CARNE_EN_NOMBRE.search(plato):
         return "carne"
-    if PESCADO.search(texto):
+    if PESCADO.search(texto) or PESCADO.search(plato):
         return "pescado"
     if apta_vegana:
         return "vegana"
@@ -448,7 +463,7 @@ def main() -> None:
             textos = " | ".join(sin_tildes(i["texto"]) for i in ings)
             texto_pasos = sin_tildes(" ".join(pasos))
             cocina = "peruana" if r["pais"] == "Perú" else "internacional"
-            dieta = dieta_de([textos] + nombres, [i["animal"] for i in ings], verdad(r["apta_vegana"]), verdad(r["apta_vegetariana"]))
+            dieta = dieta_de([textos] + nombres, [i["animal"] for i in ings], verdad(r["apta_vegana"]), verdad(r["apta_vegetariana"]), n)
             comensales = None if verdad(r["comensales_sospechoso"]) else a_float(r["comensales"])
             minutos = None if verdad(r["duracion_sospechosa"]) else a_float(r["duracion_min"])
             tiempo = int(minutos) if minutos and 5 <= minutos <= 240 else min(90, 15 + 5 * len(pasos))

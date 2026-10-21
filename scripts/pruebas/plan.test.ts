@@ -175,3 +175,20 @@ test("el plan premia reusar ingredientes de días anteriores y lo dice", () => {
     assert.equal(dicho, reusa, `${dia}: la razón no coincide con lo que reusa`);
   }
 });
+
+// Una receta cuyo nombre dice que lleva carne o pescado nunca puede quedar como
+// vegetariana o vegana, aunque sus ingredientes no lo digan claro ("500 g
+// sangrecita" en "Arroz chaufa de sangrecita de pollo").
+test("en el dataset, lo que nombra carne o pescado nunca es vegetariano", { skip: !existsSync(DATASET) }, () => {
+  const ANIMAL = /\b(pollo|carne de|cerdo|chancho|jamon|tocino|chorizo|salchicha|pavo|sangrecita|higad|pescado|atun|salmon|camaron|gamba|langostino|calamar|pulpo)/;
+  const veg = readFileSync(DATASET, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l))
+    .filter((r) => r.dieta === "vegetariana" || r.dieta === "vegana");
+  const malas = veg.filter((r) => {
+    const nombre = r.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return ANIMAL.test(nombre.replace(/\bsin \w+|\b(?:vegetarian|vegan|vegetal|de soya|de soja)\w*/g, " "));
+  });
+  assert.deepEqual(malas.map((r) => r.nombre).slice(0, 10), []);
+});
