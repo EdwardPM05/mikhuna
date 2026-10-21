@@ -137,7 +137,6 @@ Tamaños útiles: **375 × 812** (iPhone clásico), **390 × 844** (iPhone 14/15
 | Síntoma | Causa | Solución |
 |---|---|---|
 | La app gira, cae al login y registrar/ingresar falla | Proyecto de Supabase pausado (§0) | Restaurarlo desde el dashboard |
-| Aviso en la terminal: *"Your Expo app does not have a 'userInterfaceStyle' setting"* | `app.json` solo define `userInterfaceStyle` dentro de `ios` y `android`, no a nivel `expo` | Inofensivo. Para silenciarlo, agregar `"userInterfaceStyle": "light"` en `expo` |
 | Se ven elementos duplicados o viejos (por ejemplo una mascota donde no va) tras muchos cambios | Pestaña con caché de hot reload | Cerrar la pestaña por completo y abrirla de nuevo |
 | La pantalla "Generando tu plan" no termina de animar en el navegador del panel de Claude Code | La animación no avanza en esa pestaña aunque esté al frente | Probar en un navegador normal o en el celular |
 | Un `Pressable` dentro de otro `Pressable` puede no recibir el clic | Problema conocido de la web (no se reprodujo en esta sesión) | Evitarlo: poner los dos como hermanos dentro de un `View`, como se hizo en `app/(plan)/lista-compras.tsx` |

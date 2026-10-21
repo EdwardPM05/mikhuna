@@ -19,6 +19,12 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 
 ## 20 oct 2026
 
+### Aviso de Expo `userInterfaceStyle` silenciado
+- **Qué:** `app.json` define `"userInterfaceStyle": "light"` también a nivel `expo` (antes solo en `ios` y `android`).
+  Es el mismo valor, así que la app se ve igual; solo desaparece el aviso de la terminal. En `android/` (bare workflow)
+  no cambia nada hasta correr `npx expo prebuild`.
+- **Cómo regresar:** `git revert` del commit.
+
 ### Credenciales de prueba fuera del código
 - **Qué:** `context/AuthContext.tsx` ya no tiene un correo y una contraseña escritos: `DEV_AUTO_LOGIN` lee
   `EXPO_PUBLIC_DEV_EMAIL` y `EXPO_PUBLIC_DEV_PASSWORD` de `.env.local`. Sin esas variables no intenta el auto-login y
@@ -175,7 +181,6 @@ lo que tocó fuera del código y **cómo regresarlo**. Lo más reciente va arrib
 - **Reactivar el proyecto de Supabase** si figura `INACTIVE` (ver [LOCALHOST.md](LOCALHOST.md) §0).
 - **Cambiar la contraseña de la cuenta que estaba en `AuthContext.tsx`:** ya no está en el código (ver 20 oct 2026), pero
   sigue en el historial público de git.
-- **Aviso de Expo:** falta `userInterfaceStyle` a nivel `expo` en `app.json` (solo está en `ios` y `android`).
 - Cargar el dataset a Supabase (con pgvector) tras revisarlo.
 - Conectar `generarPlanConIA()` al wizard, con caché y respaldo.
 - Categorizar recetas y ampliar el catálogo de ingredientes (solo ~12 % de los ingredientes del dataset calza con `INGREDIENTES`).

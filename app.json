@@ -4,6 +4,7 @@
     "slug": "mikhuna-app",
     "version": "0.1.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "icon": "./src/assets/images/logo_icon.png",
     "scheme": "mikhuna",
     "runtimeVersion": "0.1.0",
