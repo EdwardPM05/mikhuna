@@ -22,7 +22,7 @@ export default function LoginScreen() {
       setError(error);
       return;
     }
-    router.replace("/(onboarding)/ubicacion");
+    router.replace("/"); // index decide: onboarding la primera vez, el plan si ya hay distrito
   }
 
   return (
