@@ -76,8 +76,67 @@ export function esReceta(x: unknown): x is Receta {
     Number.isFinite(r.tiempoMin) &&
     Number.isFinite(r.precio) &&
     esListaDe(r.ingredientes, (i) => !!i && typeof i === "object" && esTexto((i as { texto?: unknown }).texto, 600), 80) &&
-    esListaDe(r.pasos, (p) => esTexto(p, 600), 30)
+    esListaDe(r.pasos, (p) => esTexto(p, 600), 30) &&
+    (r.claves === undefined || esListaDe(r.claves, (c) => esTexto(c, 40), 30))
   );
+}
+
+// ---------- Ingredientes clave ----------
+// Lo que identifica a cada ingrediente para comparar recetas ("400g de
+// pechuga de pollo" y "1 pollo entero" son "pollo"). La misma regla está en
+// scripts/dataset/exportar_recetas.py: si cambias una, cambia la otra.
+const PALABRAS_SUELTAS = new Set(
+  ("de del la el los las en y o con para al a sin un una unidad unidades sopera soperas cucharada cucharadas " +
+    "cucharadita cucharaditas taza tazas vaso vasos lata latas diente dientes hoja hojas rama ramas ramita " +
+    "ramitas manojo manojos atado atados trozo trozos rodaja rodajas filete filetes pechuga pechugas muslo " +
+    "muslos jugo zumo salsa g gr grs gramos kg kilo kilos ml litro litros pizca chorro chorrito paquete " +
+    "paquetes sobre sobres bolsa pieza piezas cabeza cabezas tallo tallos punado gran grande grandes mediano " +
+    "mediana medianos medianas pequeno pequena pequenos pequenas fresco fresca frescos frescas picado picada " +
+    "picados picadas molido molida rallado rallada cocido cocida cocidos cocidas entero entera natural " +
+    "naturales media medio cuarto presa presas pierna piernas tajada tajadas postre cuchara cucharas cucharilla cucharillas " +
+    "cda cdas cdta cdtas").split(" "),
+);
+// Lo que está en casi toda receta: compartirlo no dice nada.
+const DESPENSA = new Set(
+  ("sal pimienta ajo cebolla aceite agua azucar laurel harina vino perejil oregano comino vinagre tomillo nuez " +
+    "canela mostaza pimenton manteca mantequilla caldo levadura maicena romero curry paprika clavo albahaca " +
+    "hierbabuena mayonesa soja sillao pan colorante sazonador ajinomoto culantro").split(" "),
+);
+const SINONIMOS: Record<string, string> = {
+  aguacate: "palta", cilantro: "culantro", patata: "papa", judia: "frejol", frijol: "frejol",
+  gamba: "langostino", camaron: "langostino", res: "carne", ternera: "carne", vacuno: "carne",
+  chancho: "cerdo", maiz: "choclo", ajos: "ajo",
+};
+const MAX_CLAVES = 15;
+
+const sinTildes = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+function singular(palabra: string): string {
+  let p = palabra;
+  if (p.length > 4 && p.endsWith("es") && "lnrdzi".includes(p[p.length - 3])) p = p.slice(0, -2);
+  else if (p.length > 3 && p.endsWith("s")) p = p.slice(0, -1);
+  return SINONIMOS[p] ?? p;
+}
+
+export function claveDe(texto: string): string | null {
+  const palabras = sinTildes(texto.replace(/\(.*?\)/g, " ")).match(/[a-z]+/g) ?? [];
+  for (const palabra of palabras) {
+    if (!PALABRAS_SUELTAS.has(palabra) && palabra.length > 2) {
+      const clave = singular(palabra);
+      return DESPENSA.has(clave) ? null : clave;
+    }
+  }
+  return null;
+}
+
+export function clavesDe(r: Receta): string[] {
+  if (r.claves) return r.claves;
+  const claves: string[] = [];
+  for (const { texto } of r.ingredientes) {
+    const clave = claveDe(texto);
+    if (clave && !claves.includes(clave)) claves.push(clave);
+  }
+  return claves.slice(0, MAX_CLAVES);
 }
 
 const NOMBRE_ANTOJO: Record<string, string> = {
@@ -98,6 +157,14 @@ export function respetaRestricciones(receta: Receta, restricciones: string[]): b
   if (restricciones.includes("sin-gluten") && receta.conGluten) return false;
   if (restricciones.includes("sin-lactosa") && receta.conLactosa) return false;
   return true;
+}
+
+// Qué dietas puede comer, en los términos de la columna `dieta` de public.recetas.
+export function dietasPermitidas(restricciones: string[]): string[] {
+  if (restricciones.includes("vegano")) return ["vegana"];
+  if (restricciones.includes("vegetariano")) return ["vegetariana", "vegana"];
+  if (restricciones.includes("pescetariano")) return ["pescado", "vegetariana", "vegana"];
+  return ["carne", "pescado", "vegetariana", "vegana"];
 }
 
 // Sin electrodomésticos marcados (un plan viejo) no se filtra: no sabemos qué tiene.
@@ -175,29 +242,69 @@ export function razonDe(r: Receta, p: PreferenciasPlan): string {
   return motivos.slice(0, 2).join(" · ");
 }
 
+// Puntos por reusar ingredientes de días anteriores: lo que se compra para
+// una receta sirve para otra y no se malogra. Tope bajo para que no gane a lo
+// que la persona pidió (antojos, objetivo, restricciones ya filtradas).
+const PUNTOS_POR_INGREDIENTE_REUSADO = 2;
+const MAX_PUNTOS_REUSO = 4;
+
+// Qué ingredientes de esta receta ya se compraron para un día anterior, y para cuál.
+export function ingredientesReusados(r: Receta, anteriores: { dia: string; receta: Receta }[]) {
+  const reusados: { clave: string; dia: string }[] = [];
+  for (const clave of clavesDe(r)) {
+    const previo = anteriores.find((a) => a.receta.id !== r.id && clavesDe(a.receta).includes(clave));
+    if (previo) reusados.push({ clave, dia: previo.dia });
+  }
+  return reusados;
+}
+
+// Las claves van sin tildes; para mostrarlas se les devuelve la tilde y el artículo.
+const CON_TILDE: Record<string, string> = {
+  aji: "ají", limon: "limón", champinon: "champiñón", platano: "plátano", brocoli: "brócoli", atun: "atún",
+  salmon: "salmón", jamon: "jamón", frejol: "frejol", pimenton: "pimentón", calabacin: "calabacín",
+};
+function conArticulo(clave: string): string {
+  const nombre = CON_TILDE[clave] ?? clave;
+  return `${clave.endsWith("a") || clave === "carne" || clave === "leche" ? "la" : "el"} ${nombre}`;
+}
+
+function razonConReuso(r: Receta, p: PreferenciasPlan, reusados: { clave: string; dia: string }[]): string {
+  if (reusados.length === 0) return razonDe(r, p);
+  const { clave, dia } = reusados[0];
+  return `Aprovecha ${conArticulo(clave)} del ${dia.toLowerCase()} · ${razonDe(r, p).split(" · ")[0]}`;
+}
+
 // Plan sin IA: para cada día, la receta con más puntos, castigando las que ya
-// salieron para que la semana varíe. Si ninguna receta cumple las
-// restricciones, devuelve [] en vez de saltárselas.
+// salieron para que la semana varíe y premiando las que reusan ingredientes
+// de días anteriores. Si ninguna receta cumple las restricciones, devuelve []
+// en vez de saltárselas.
 export function armarPlanLocal(p: PreferenciasPlan, recetas: Receta[] = RECETAS): DiaPlan[] {
   const posibles = candidatas(p, Number.POSITIVE_INFINITY, recetas);
   if (posibles.length === 0) return [];
   const usos = new Map<string, number>();
-  let anterior: Receta | null = null;
+  const elegidas: { dia: string; receta: Receta }[] = [];
   const plan: DiaPlan[] = [];
   for (const dia of DIAS.filter((d) => p.dias.includes(d))) {
+    const anterior = elegidas.at(-1)?.receta;
     let mejor = posibles[0];
     let mejorPuntos = Number.NEGATIVE_INFINITY;
+    let mejorReusados: { clave: string; dia: string }[] = [];
     for (const r of posibles) {
+      const reusados = ingredientesReusados(r, elegidas);
       const puntos =
-        puntaje(r, p) - 6 * (usos.get(r.id) ?? 0) - (anterior && anterior.antojoId === r.antojoId ? 1 : 0);
+        puntaje(r, p) -
+        6 * (usos.get(r.id) ?? 0) -
+        (anterior && anterior.antojoId === r.antojoId ? 1 : 0) +
+        Math.min(MAX_PUNTOS_REUSO, PUNTOS_POR_INGREDIENTE_REUSADO * reusados.length);
       if (puntos > mejorPuntos) {
         mejor = r;
         mejorPuntos = puntos;
+        mejorReusados = reusados;
       }
     }
     usos.set(mejor.id, (usos.get(mejor.id) ?? 0) + 1);
-    anterior = mejor;
-    plan.push({ dia, recetaId: mejor.id, razon: razonDe(mejor, p) });
+    elegidas.push({ dia, receta: mejor });
+    plan.push({ dia, recetaId: mejor.id, razon: razonConReuso(mejor, p, mejorReusados) });
   }
   return plan;
 }

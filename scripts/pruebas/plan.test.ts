@@ -10,7 +10,9 @@ import {
   ELECTRODOMESTICOS_IDS,
   armarPlanLocal,
   candidatas,
+  claveDe,
   esReceta,
+  ingredientesReusados,
   respetaRestricciones,
   sePuedePreparar,
   type PreferenciasPlan,
@@ -150,5 +152,26 @@ test("con recetas del dataset en la lista, el plan las usa y sigue respetando la
     }
     // A igual puntaje gana la que viene primero: la del dataset.
     if (lista.length) assert.ok(lista[0].id.startsWith("ds-"));
+  }
+});
+
+test("las claves de ingredientes agrupan lo mismo dicho distinto y saltan la despensa", () => {
+  assert.equal(claveDe("400g de pechuga de pollo"), "pollo");
+  assert.equal(claveDe("2 tomates en gajos"), "tomate");
+  assert.equal(claveDe("2 ajíes amarillos en tiras"), "aji");
+  assert.equal(claveDe("1 aguacate maduro"), "palta");
+  assert.equal(claveDe("Sal y pimienta"), null);
+  assert.equal(claveDe("1 cebolla roja"), null);
+});
+
+test("el plan premia reusar ingredientes de días anteriores y lo dice", () => {
+  const plan = armarPlanLocal({ ...BASE, antojos: ["criolla"], electrodomesticos: ELECTRODOMESTICOS_IDS });
+  const conReuso = plan.filter((d) => d.razon.startsWith("Aprovecha"));
+  assert.ok(conReuso.length >= 3, `solo ${conReuso.length} días reusan algo`);
+  const elegidas = plan.map((d, i) => ({ dia: d.dia, receta: recetaDe(d.recetaId), i }));
+  for (const { dia, receta, i } of elegidas) {
+    const dicho = plan[i].razon.startsWith("Aprovecha");
+    const reusa = ingredientesReusados(receta, elegidas.slice(0, i)).length > 0;
+    assert.equal(dicho, reusa, `${dia}: la razón no coincide con lo que reusa`);
   }
 });

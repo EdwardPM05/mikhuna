@@ -37,6 +37,7 @@ export type Receta = {
   ingredientes: IngredienteReceta[];
   pasos: string[];
   pais?: string | null; // de dónde es, en las recetas del dataset
+  claves?: string[]; // ingredientes que la identifican; si falta, se sacan de `ingredientes` (ver clavesDe)
 };
 
 export const RECETAS: Receta[] = [
