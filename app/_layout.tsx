@@ -6,12 +6,12 @@ import {
   NunitoSans_700Bold,
   NunitoSans_800ExtraBold,
 } from "@expo-google-fonts/nunito-sans";
-import { Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, type ReactNode } from "react";
 import { Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 import { PlanWizardProvider } from "../context/PlanWizardContext";
 import { CartProvider } from "../context/CartContext";
 import { OrdersProvider } from "../context/OrdersContext";
@@ -29,6 +29,21 @@ function PhoneFrame({ children }: { children: ReactNode }) {
       </View>
     </View>
   );
+}
+
+// Si la sesión se pierde fuera del login (venció, la revocaron o se cerró en
+// otro lado), vuelve al login en vez de dejar al usuario en pantallas que
+// ya no pueden leer ni guardar nada. app/index.tsx decide por su cuenta.
+function GuardiaSesion() {
+  const { session, loading } = useAuth();
+  const segmentos = useSegments();
+  const fueraDelLogin = segmentos.length > 0 && segmentos[0] !== "(auth)";
+
+  useEffect(() => {
+    if (!loading && !session && fueraDelLogin) router.replace("/(auth)/login");
+  }, [loading, session, fueraDelLogin]);
+
+  return null;
 }
 
 export default function RootLayout() {
@@ -58,6 +73,7 @@ export default function RootLayout() {
         <CartProvider>
           <OrdersProvider>
             <StatusBar style="dark" />
+            <GuardiaSesion />
             <PhoneFrame>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(auth)" />

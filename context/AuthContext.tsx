@@ -53,17 +53,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // auto-login llegaría tarde.
     let autoLoginEnCurso = false;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session && HAY_AUTO_LOGIN) {
-        autoLoginEnCurso = true;
-        const { data: login } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!data.session && HAY_AUTO_LOGIN) {
+          autoLoginEnCurso = true;
+          const { data: login } = await supabase.auth.signInWithPassword(DEV_AUTO_LOGIN);
+          setSession(login.session); // null si las credenciales de dev fallan o no hay red
+        } else {
+          setSession(data.session);
+        }
+      })
+      // Si no se puede leer la sesión guardada, mejor mostrar el login que
+      // dejar la pantalla de carga para siempre.
+      .catch(() => setSession(null))
+      .finally(() => {
         autoLoginEnCurso = false;
-        setSession(login.session); // null si las credenciales de dev fallan o no hay red
-      } else {
-        setSession(data.session);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (event === "INITIAL_SESSION") return; // de eso se encarga getSession
